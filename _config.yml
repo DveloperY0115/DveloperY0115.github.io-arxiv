@@ -6,10 +6,10 @@ baseurl:            "/blog"
 url:                "https://dvelopery0115.github.io"
 
 # Social Profiles
-twitter_username:   
-github_username:    
-facebook_username:  
-instagram_username:  
+twitter_username:
+github_username:
+facebook_username:
+instagram_username:
 linkedin_username:
 
 # Add your google-analytics ID here to activate google analytics
@@ -17,6 +17,7 @@ google_analytics:   UA-XXXXXXXXX-X # out your google-analytics code
 
 # Build settings
 markdown: kramdown
+theme: jekyll-theme-clean-blog
 highlighter: rouge
 lsi: false
 excerpt_separator: "\n\n"
