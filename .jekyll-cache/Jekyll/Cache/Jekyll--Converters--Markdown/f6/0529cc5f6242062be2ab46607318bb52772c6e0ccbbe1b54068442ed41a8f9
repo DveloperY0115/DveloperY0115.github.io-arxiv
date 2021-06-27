@@ -1,0 +1,172 @@
+I"i9<p><img class="img-fluid" src="/assets/post-images/NeRF/NeRF_overview.png" />
+<span class="caption text-muted">Figure 1. <b>NeRF Overview</b>.</span></p>
+
+<h1 id="motivation">Motivation</h1>
+
+<ul>
+  <li>Novel view image synthesis is one of the long-standing problems in both computer vision and computer graphics fields, and its significance is becoming larger as demands on interactive media applications increases.</li>
+  <li>There were huge success in representing highly detailed 3D shape with neural network, but these methods were not suitable for reproducing realistic images compared to discrete-representation-based methods using mesh or voxels. <strong>→ In other words, no rendering technique for continuous geometry &amp; radiance distributions.</strong></li>
+</ul>
+
+<h1 id="key-contributions">Key Contributions</h1>
+
+<ul>
+  <li>State-of-the-art method for synthesizing novel views of complex scenes by optimizing <strong>continuous volumetric scene function</strong> (= radiance field) representing complex geometry and materials.</li>
+  <li><strong>Differentiable rendering</strong> based on <strong>classical volume rendering</strong> techniques, which generates images that can be compared with ground truth for optimization. And <strong>hierarchical sampling</strong> that reduces the cost by adequately sampling high frequency scene representation.</li>
+  <li><strong>Positional encoding</strong> for mapping 5D coordinates to higher dimensional space.</li>
+</ul>
+
+<h1 id="key-concepts">Key Concepts</h1>
+
+<p><img class="img-fluid" src="/assets/post-images/NeRF/NeRF_novel_view_synthesis.png" />
+<span class="caption text-muted">Figure 2. <b>Novel View Synthesis with NeRF</b>.</span></p>
+
+<p>The overall process can be summarized into three steps:</p>
+
+<ol>
+  <li>March camera rays through the scene to generate  a sampled set of 3D points.</li>
+  <li>Use these points and their corresponding 2D viewing directions as input to the neural network to produce an output set of colors and densities.</li>
+  <li>Use classical volume rendering technique to produce 2D image, which is the final rendering of the scene.</li>
+</ol>
+
+<p><strong>The entire process is differentiable, so this can be easily parametrized with neural network, and optimized through gradient descent.</strong></p>
+
+<h2 id="neural-radiance-field-scene-representation">Neural Radiance Field Scene Representation</h2>
+
+<p>The <strong>continuous scene</strong> of interest can be <strong>represented as a 5D vector-valued function</strong> $F_{\Theta}$whose input &amp; output are:</p>
+
+<ul>
+  <li><strong>Input</strong>: Concatenation of a 3D location $\textbf{x} = (x, y, z)$ and 2D viewing direction $(\theta, \phi)$</li>
+  <li><strong>Output</strong>: A color $\textbf{c} = (r, g, b)$ and volume density $\sigma$ at that point</li>
+</ul>
+
+<p>Thus, the relation between input and output in terms of $F_{\theta}$ is:</p>
+
+\[F_{\Theta}: (\textbf{x}, \textbf{d}) \to (\textbf{c}, \sigma)\]
+
+<p>Note that 5D input vector is obtained by casting ray though scene, <strong>sampling points along each ray</strong>. Also, <strong>the viewing direction $(\theta, \phi)$ are substituted to a unit vector $\textbf{d}$ indicating the identical direction</strong> in practice.</p>
+
+<p>After sampling enough sample points and both $\textbf{c}$ and $\sigma$ associated with each point, the classical volume renderer comes into play, generating the final image.</p>
+
+<p>Then the predicted image and ground truth image are compared &amp; used to calculate loss function to be optimized. This way, the parameters $\Theta$ are optimized through gradient descent.</p>
+
+<p><img class="img-fluid" src="/assets/post-images/NeRF/NeRF_view_dependent_emitted_radiance.png" />
+<span class="caption text-muted">Figure 3. <b>View-dependent emitted radiance</b>. It’s natural for a single point to be seen differently with respect to observers position and even view direction.</span></p>
+
+<p>Internally, <strong>the volume density $\sigma$ is affected by $\textbf{x}$ only</strong>, to ensure multiview consistency. On the other hand, <strong>the color $\textbf{c}$ is a function of both $\textbf{x}$ and $\textbf{d}$</strong>. By doing so, the model can successfully model non-Lambertian (i.e. specular) materials given different view settings as shown in the figure above. <strong>Otherwise, NeRF won’t be able to predict the color value properly for materials interacting with light &amp; observer differently according to their relative position and orientation.</strong></p>
+
+<p><img class="img-fluid" src="/assets/post-images/NeRF/NeRF_effect_of_view_dependence.png" />
+<span class="caption text-muted">Figure 4. <b>Effect of view-dependence</b>. The model struggles to reproduce the behavior of specular materials with no information about viewpoint.</span></p>
+
+<p><img class="img-fluid" src="/assets/post-images/NeRF/NeRF_network_structure.png" />
+<span class="caption text-muted">Figure 5. <b>Network Structure of NeRF</b>.  Notice that the viewpoint dependent information is only involves the very last part of the pipeline.</span></p>
+
+<h2 id="volume-rendering-with-radiance-fields">Volume Rendering with Radiance Fields</h2>
+
+<p>We now have a representation for a scene, describing it as the volume density and directional emitted radiance at any point in space (that’s why it’s called radiance <em>field</em>). Then our next question would be: <em>“How can we render an image with this?”</em></p>
+
+<p>One non-trivial work involving rendering is to <strong>determine which part of a scene is visible</strong>. The interaction between light and object happens naturally in nature but it’s hard to mimic in computer graphics. And this is the part where the classical volume rendering comes into play.</p>
+
+<p>The <strong>volume density</strong> $\sigma(\textbf{x})$, which is only dependent on the position $\textbf{x}$, <strong>can be thought as the differential probability of a ray terminating at an infinitesimal particle located at $\textbf{x}$</strong>. For example, if a particle located at $\textbf{x}$ is completely opaque (i.e. the ray cannot penetrate this point) that the volume density at this point becomes 1, preventing every points behind it along a ray from contributing to a pixel.</p>
+
+<p>That being said, the expected color $C(\textbf{r})$ of camera ray $\textbf{r}(t) = \textbf{o} + t\textbf{d}$ with near and far bounds $t_n$ and $t_f$ can be defined as:</p>
+
+\[C(\textbf{r}) = \int_{t_n}^{t_f} T(t)\sigma(\textbf{r}(t))\textbf{c}(\textbf{r}(t), \textbf{d})dt\]
+
+<p>where $T(t) = exp(-\int_{t_n}^{t} \sigma(\textbf{r}(s))ds))$. The function $T(t)$ denotes the <em>accumulated transmittance</em> along the ray from $t_n$ to $t$.</p>
+
+<p>Observe that $T(t)$ decays rapidly as a casted ray meets many opaque points (i.e. having high $\sigma$ values) before reaching the point  $\textbf{x}^{\prime} = \textbf{r}(t)$. This means that the volume density and color of point $\textbf{x}^{\prime}$ have low or almost zero contribution to the pixel back-tracing the ray.</p>
+
+<p>Then the only practical problem left is <strong>how the integral is calculated (or approximated)</strong> numerically. In short, integral can be estimated using quadrature. However, conventional deterministic quadrature typically used in rendering discretized voxel grids won’t fit into our purpose since it only uses pre-fixed points when calculating integral.</p>
+
+<p>Instead, we <strong>introduce some randomness</strong> by doing <strong>stratified sampling</strong> which does stochastic sampling of points where the value of integrand should be evaluated.</p>
+
+<p>Given near and far bounds $t_n$ and $t_f$, the interval $[t_n, t_f]$ can be partitioned into $N$ evenly-spaced subintervals. Then, samples are drawn uniformly from each subintervals. More rigorously,</p>
+
+\[t_i \sim \mathcal{U}[t_n + \frac{i-1}{N}(t_f - t_n), t_n + \frac{i}{N}(t_f - t_n)]\]
+
+<p>Then these samples are used to estimate the integral, but this time with slight modification,</p>
+
+\[\hat{C}(\textbf{r}) = \sum_{i=1}^{N} T_i(1 - exp(-\sigma_i\delta_i))\textbf{c}_i\]
+
+<p>where $T_i = exp(-\sum_{j=1}^{i-1}\sigma_j\delta_j)$, and $\delta_i = t_{i+1} - t_i$, which is the distance between two adjacent samples along a ray. Note that, the function described above is fully differentiable and resembles the traditional alpha compositing with $\alpha_i = 1 - exp(-\sigma_i\delta_i)$.</p>
+
+<h2 id="optimizing-a-neural-radiance-field">Optimizing a Neural Radiance Field</h2>
+
+<p>While the basic concept of scene representation as neural radiance field remains the same, there’re some factors added to the pipeline to push the boundary even further.</p>
+
+<ol>
+  <li><strong>Positional encoding</strong> of input coordinates assisting the MLP in representing high-frequency functions</li>
+  <li><strong>Hierarchical sampling</strong> which is more efficient sampling method capturing high-frequency detail as well.</li>
+</ol>
+
+<h3 id="positional-encoding">Positional Encoding</h3>
+
+<p>It’s well-known that neural networks are universal function approximators, but <strong>letting the network $F_{\Theta}$ operate directly on $(x, y, z, \theta, \phi)$ results in poor performance, especially in capturing high-frequency detail</strong> (both in color and geometry) contained in a scene. This is because of the tendency of neural network learning to regress low frequency functions (Rahaman, et al., On the spectral bias of neural networks, ICML 2018).</p>
+
+<p>Thus, it’s desirable to tweak the original setting of $F_{\Theta}$ a little bit, so that it could capture high-frequency information well. To this end, $F_{\Theta}$ is reformulated into a composition of two functions $F_{\Theta} = F_{\Theta}^{\prime} \circ \gamma$ . One is with learnable parameters while the other is not. Here, <strong>the function $\gamma$ is a mapping from $\mathbb{R}$ to a higher dimensional space</strong> $\mathbb{R}^{2L}$, where <strong>$F^{\prime}_{\Theta}$ remains a MLP</strong>. Formally, the encoding function $\gamma$ used here is (note that it’s deterministic!):</p>
+
+\[\gamma(p) = (\sin(2^0\pi p), \cos(2^0 \pi p), \cdot\cdot\cdot, \sin(2^{L-1} \pi p), \cos(2^{L-1} \pi p))\]
+
+<p><strong>→ Any relation with Fourier analysis or mathematical justification?</strong></p>
+
+<p>In the pipeline, the function $\gamma(\cdot)$ is applied separately on each element of $\textbf{x} = (x, y, z)$, and $\textbf{d} = (d_x, d_y, d_z)$. Here, each coordinates of $\textbf{x}$ are assumed to be normalized into $[-1, 1]$, thus $\textbf{x}$ is lying in canonical cubic space, just like NDC in OpenGL pipeline. Also, $\textbf{d}$ is assumed to be an unit vector.</p>
+
+<p>According to the authors, for positional encoding,</p>
+
+<ul>
+  <li>$L=10$,  for $\gamma(\textbf{x})$</li>
+  <li>$L=4$,  for $\gamma(\textbf{d})$</li>
+</ul>
+
+<p>are used, respectively.</p>
+
+<h3 id="hierarchical-sampling">Hierarchical Sampling</h3>
+
+<p>The sampling strategy introduced earlier which samples $N$ points uniformly from subintervals each of which equally partitions the tragectory of a ray is inefficient. To improve it, we might think of a way to predict <em>samples that would bring huge impacts on determining final render</em>.</p>
+
+<p>Thus, instead of using a single network, two networks are trained separately - one using “coarse” sampling, the other using “fine” sampling strategy. <strong>→ “Fine” network requires results from “coarse” network. Can be thought as some sort of post processing!</strong></p>
+
+<p>Then, the color from coarse network $\hat{C}_c(\textbf{r})$ is just identical to the previously introduced discrete summation, but with slight modification in notation:</p>
+
+\[\hat{C}_c(\textbf{r}) = \sum_{i=1}^{N_c} w_ic_i, \, \text{where} \,\, w_i = T_i(1 - exp(\sigma_i \delta_i))\]
+
+<p>As one can see, the accumulated density before $i$-th sample and the density of $i$-th sample are considered together as the <strong>weight of the color value</strong> that $i$-th sample possesses.</p>
+
+<p>By normalizing these weights as in the following:</p>
+
+\[\hat{w}_i = w_i / \sum_{j=1}^{N_c} w_j\]
+
+<p>we can obtain a piecewise-constant PDF along the ray. Then, the new set $N_f$ number of points are sampled according to this PDF using <em>inverse transform sampling</em>. And the color for final render is calculated using the same method (numerical integration) but using all $N_c + N_f$ samples. This let the model focus more on important candidates for evaluating color for pixels.</p>
+
+<h1 id="implementation-details">Implementation Details</h1>
+
+<p><strong>REMARK: A neural continuous volume representation network can represent only a single scene!</strong></p>
+
+<p>The model takes <strong>a set of RGB images</strong> of the scene we want to represent as NeRF, and corresponding <strong>camera intrinsic and extrinsic</strong>, and <strong>scene bounds</strong>. Note that third-party software is used to extract these information when treating real world data.</p>
+
+<p>At each optimization step,</p>
+
+<ol>
+  <li>A batch of camera rays originated from all pixels are randomly sampled</li>
+  <li>Sample $N_c$ samples for evaluating &amp; optimizing <em>coarse network</em></li>
+  <li>Again sample $N_f$ samples and then pass these and previously sampled $N_c$ samples together to <em>fine network</em> and obtain the color values at each point along rays</li>
+  <li>Render the scene using volume rendering technique and get the final output image</li>
+  <li>Evaluate the loss function and back propagate</li>
+</ol>
+
+<p>The loss for optimizing NeRF is simply the mean square error between predicted images (from coarse and fine network, respectively) and ground truth:</p>
+
+\[\mathcal{L} = \sum_{\textbf{r} \in \mathcal{R}} [\vert\vert \hat{C}_c(\textbf{r}) - C(\textbf{r})\vert\vert_{2}^{2} + \vert\vert \hat{C}_f(\textbf{r}) - C(\textbf{r})\vert\vert_{2}^{2} ]\]
+
+<p>where $\mathcal{R}$ is the set of rays in each batch, $C(\textbf{r})$, $\hat{C}_c(\textbf{r})$, and $\hat{C}_f(\textbf{r})$ are the ground truth, predicted color from coarse network, and predicted color from fine network for ray $\textbf{r}$ respectively. <strong>Note that, although we obtain final output from fine network, coarse network should be optimized simultaneously for accurate hierarchical sampling.</strong></p>
+
+<p>Below are some numbers related to the training:</p>
+
+<ul>
+  <li>Batch size: 4096 (rays)</li>
+  <li>Sampled points: $N_c = 64$, $N_f = 128$</li>
+  <li>Adam optimizer parameters: $\alpha = 5 \times 10^{-4}$, but decaying to $5 \times 10^{-5}$</li>
+  <li><strong>1 ~ 2 days before convergence with a single NVIDIA V100 GPU</strong></li>
+</ul>
+:ET
