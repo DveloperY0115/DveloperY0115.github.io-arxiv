@@ -1,0 +1,11 @@
+I"’<h1 id="deepsdf-learning-continuous-signed-distance-functions-for-shape-representation">DeepSDF: Learning Continuous Signed Distance Functions for Shape Representation</h1>
+
+<h1 id="method-summary">Method Summary</h1>
+
+<ul>
+  <li>Introduce a method of <strong>parametrizing signed distance function</strong> representing shapes of objects with neural network.</li>
+  <li>Use <strong>audo-decoder</strong> for learning latent space of each shapes instead of fitting the network to each instance belonging to some category <strong>â†’ Compact, and generalizable!</strong></li>
+</ul>
+
+<p><img src="https://i.imgur.com/J4cBFLp.png" alt="deepsdf_overview" /></p>
+:ET
