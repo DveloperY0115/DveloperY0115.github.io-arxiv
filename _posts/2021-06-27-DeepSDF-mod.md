@@ -1,15 +1,112 @@
 ---
 layout: post
-title: "DeepSDF: Learning Continuous Signed Distance Functions for Shape Representation"
+title: "Summary on 'DeepSDF: Learning Continuous Signed Distance Functions for Shape Representation'"
 use_math: true
 background: '/img/posts/deepsdf/deepsdf_overview.png'
 ---
-
-# DeepSDF: Learning Continuous Signed Distance Functions for Shape Representation
-
 # Method Summary
 
 - Introduce a method of **parametrizing signed distance function** representing shapes of objects with neural network.
 - Use **audo-decoder** for learning latent space of each shapes instead of fitting the network to each instance belonging to some category **→ Compact, and generalizable!**
 
-<img src="/assets/post-images/DeepSDF/deepsdf_overview.png" alt="DeepSDF_Overview" width="1000"/>
+<img class="img-fluid" src="/assets/post-images/DeepSDF/deepsdf_overview.png">
+<span class="caption text-muted">Figure 1. <b>DeepSDF  learning latent space of object classes</b></span>
+
+# Motivations
+
+- Classical & compact 3D shape representations - such as mesh - is hard to use in deep learning pipeline since the model has to deal with varying number of vertices and topologies. → Limits the quality, flexibility, fidelity of deep learning based approaches
+
+# Key Contributions
+
+- Novel representation and approach for generative 3D modeling. → efficient, expressive, and fully continuous
+- ***Continuous SDF***, but parametrized with deep neural network. → Traditional approaches exploitng SDF used discretized, regular grids
+- Learning method for 3D shapes based on a probabilistic ***auto-decoder***.
+- Efficient compared to other methods (e.g. uses only 7.4 MB of memory to represent the *entire classes of shapes*, compared to 16.8 MB of single $512^3$ 3D bitmap)
+
+# Key Concepts
+
+## Modeling SDFs with Neural Networks
+<img class="img-fluid" src="/assets/post-images/DeepSDF/deepsdf_sdf.png">
+<span class="caption text-muted">Figure 2. <b>Representing Closed Surfaces with signed distance function (SDF)</b></span>
+
+### Signed Distance Function, approximated by Neural Network
+
+**A signed distance function (SDF)** is a continuous function that outputs the distance between a given point to the closest point of the surface. The sign encodes the information whether a given point is inside (negative) or outside(positive) of the watertight surface.
+
+$$ SDF(\textbf{x}) = s \quad \textbf{x} \in \mathbb{R}^3, s \in \mathbb{R} $$
+
+By directly regressing the SDF using deep neural network, the resulting neural network can answer whether a given query point is (1) inside, (2) outside, or (3) on the surface that is represented by the trained network. → The surface can be optained by sampling multiple points from the network.
+
+### Training DeepSDF - Input data & Loss
+
+The most straightforward application of DeepSDF is to train a network given:
+
+$$ X \colon= \{ (\textbf{x}, s): SDF(\textbf{x})=s\} $$
+
+we need a set of point coordinate, and SDF values to train the network. Then hopefully, we train our network $f_{\theta}$ to succesfully approximate the ground truth SDF of which the samples were sampled from. In more rigorous form:
+
+$$f_{\theta}(\textbf{x}) \approx SDF(\textbf{x}), \forall \textbf{x} \in \Omega$$
+
+Here, the set $\Omega$ is the target domain.
+
+The training is done by minimizing $L_1$ loss function:
+
+$$\mathcal{L}(f_{\theta}(\textbf{x}), s) = \vert clamp(f_{\theta}(\textbf{x}), \delta) - clamp(s, \delta) \vert$$
+
+where $clamp(x, \delta) \colon= min(\delta, max(-\delta, x))$. Here, the parameter $\delta$ controls the distance from the surface over which we expect to maintain a metric SDF. Larger $\delta$ is suitable for fast ray-tracing, while smaller $\delta$ gives us more fine detailed surface.
+
+<img class="img-fluid" src="/assets/post-images/DeepSDF/deepsdf_clamp.png">
+<span class="caption text-muted">Figure 3. <b>Visualization of clamp function when delta is 0.5</b>.  As one can see, this function "clamps" the values to the threshold value delta.</span>
+
+### Network Structure Overview
+
+<img class="img-fluid" src="/assets/post-images/DeepSDF/deepsdf_model.png">
+<span class="caption text-muted">Figure 4. <b>Overall structure of network used in the experiments</b>.  The latent vector in the diagram will be explained soon.</span>
+
+**The network consists of 8 FC layers**, each of which **followed by dropout and ReLU**. All **internal FC layers have dimension 512**. **Weight-normalization is used** instead of batch normalization due to the unstability. 
+
+After training, we can think of the neural network as a representation of zero iso-surface of $f_{\theta}(\textbf{x})$, and it can be visualized by ray-casting or marching cube algorithms.
+
+## Learning the Latent Space of Shapes
+
+Training a specific neural network for each shape...? 🤔 → Not useful at all!
+
+**We want our model to represent various shapes.**
+
+To do so, the network should have additional input along with the coordinate that we want to determine the SDF value at. It's a **latent vector** $\mathcal{z}$, a low dimensional vector embedding the shape information.
+
+Then, should we use auto-encoder to create latent vector corresponding to some shape? The answer is no.
+
+### Why Encoder-less Learning?
+
+Usually, the encoder is abandoned after training. It's definitely waste of computational resource. Also, even without encoder, DeepSDF successfully presents fine detailed results.
+
+In addition, the stochastic nature of VAE did not lead to good training results → "So we dropped the encoder and reparametrization trick!! Haha!!"
+
+### Auto-decoder-based DeepSDF Formulation
+
+Given a dataset of $N$ shapes represented with signed distance function $SDF^{i}$ where $i=1...N$, for each shapes, we prepare a set of $K$ point samples and their SDF values, that is, for each shape $i$, we prepare:
+
+$$ X_i = \{ (\textbf{x}_j, s_j): s_j = SDF^{i}(\textbf{x}_j)\}, j = 1...K $$
+
+Thinking of the purpose of introducing latent vector, **it's natural for each latent vector $\mathcal{z}_i$ to be paired with each shape $X_i$** (more precisely, this is a sampled point from the shape of interest). Then the posterior over shape code $\mathcal{z}_i$ given the shape SDF samples $X_i$ can be decomposed as:
+
+$$ p_{\theta}(\mathcal{z}_i \vert X_i) = p(\mathcal{z}_{i}) \Pi_{(\textbf{x}_j, s_j) \in X_i} p_{\theta}(s_j \vert \mathcal{z}_i; \textbf{x}_j) $$
+
+where $\theta$ parametrizes the SDF likelihood. Note that the prior distribution $p(\mathcal{z}_i)$ is **assumed** to be a zero-mean multivariate Gaussian with a spherical covariance $\sigma^2I$. That is, $p(\mathcal{z}_i) \sim \mathcal{N}(0, \sigma^2I)$. 
+
+That being said, we can express the SDF likelihood via a deep feed-forward network $$f_{\theta}(\mathcal{z}_i, \textbf{x}_{i})$$ and, by assuming that the likelihood takes the form:
+
+$$ p_{\theta}(s_j \vert \mathcal{z}_{i}; \textbf{x}_{j}) = exp(-\mathcal{L}(f_{\theta}(\mathcal{z}_i, \textbf{x}_i), s_j)) $$
+
+**During training**, the joint log posterior can be maximized by solving the following optimization problem:
+
+$$ \underset{\theta, \{ \mathcal{z}_i \}_{i=1}^{N}}{\text{argmin}} \sum_{i=1}^{N}(\sum_{j=1}^{K}\mathcal{L}(f_{\theta}(\mathcal{z}_i, \textbf{x}_j), s_j) + \frac{1}{\sigma^2}\vert\vert\mathcal{z}_i \vert\vert_{2}^{2}) $$
+
+Note that minimizing clamped loss eventually increases the likelihood.
+
+**At inference time,** we fix the parameters of decoder and only the latent vector is optimized by nevigating latent space. However, the candidates for latent spaces is constrained to be Gaussian with spherical covariance. Thus, a proper shape code $\mathcal{z}_i$ for given shape $X_i$ can be estimated via Maximum-a-Posterior (MAP) estimation as:
+
+$$\hat{\mathcal{z}} = \underset{\mathcal{z}}{\text{argmin}} \sum_{(\textbf{x}_j, s_j) \in X} \mathcal{L}(f_{\theta}(\mathcal{z}, \textbf{x}_j), s_j) + \frac{1}{\sigma^2} \vert\vert \mathcal{z} \vert\vert_{2}^{2}$$
+
+Note that the parameters $\theta$ is fixed during the inference. The only thing optimized during this step is the latent vector for input shape.
