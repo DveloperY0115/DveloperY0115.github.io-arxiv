@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Summary on 'Stable View Synthesis'"
+title: "Summary of 'Stable View Synthesis'"
 use_math: true
 background: '/assets/post-images/SVS/SVS_method_overview.png'
 ---

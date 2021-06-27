@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Summary on 'Texture Fields: Learning Texture Representations in Function Space'"
+title: "Summary of 'Texture Fields: Learning Texture Representations in Function Space'"
 use_math: true
 background: '/assets/post-images/TextureFields/texturefields_method_overview.png'
 ---
