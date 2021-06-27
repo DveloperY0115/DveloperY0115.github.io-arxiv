@@ -1,0 +1,312 @@
+I"�Y<p><img class="img-fluid" src="/assets/post-images/TextureFields/texturefields_method_overview.png" />
+<span class="caption text-muted">Figure 1. <b>Method Overview</b>. Illustrates high-level idea of Texture Fields</span></p>
+
+<h1 id="method-summary">Method Summary</h1>
+
+<ul>
+  <li>Introduce the idea of <strong>vector field which maps a point in 3D space to a point in color space</strong>, designed to assign proper color to each point on the surface of an object.</li>
+  <li><strong>Three jointly connected networks</strong>, each playing different role in the pipeline, such as <em>capturing shape feature, extracting image feature, and predicting color vector</em>, are <strong>trained in an end-to-end manner.</strong></li>
+  <li>Conditional pipeline, which takes image embedding as an additional input, is trained with supervision (i.e. ground truth pixel value is known). <strong>→</strong> <strong>Limitation: Images from multiple viewpoints (not necessarily the same as the conditioning image) must be rendered.</strong></li>
+  <li>Unconditional pipeline, however, exploits probabilistic generative models such as GAN, VAE since we don’t have information about the apperance of the object.</li>
+  <li><strong>Overall, the idea is quite fresh, but computing loss in 2D image space sounds inefficient, and not elegant. We need to find a way to embedd the appearance information in 3D space directly.</strong></li>
+</ul>
+
+<h1 id="motivation">Motivation</h1>
+
+<ul>
+  <li><strong>Texture reconstruction of 3D objects</strong> has recevied little attention compared to 3D geometry reconstruction, or image generative models.</li>
+  <li>Commonly used representations of texture are inefficient or hard to be integrated into deep learning pipeline.</li>
+</ul>
+
+<h1 id="key-contributions">Key Contributions</h1>
+
+<ul>
+  <li>Introduces Texture Fields, texture representation based on <strong>regressing a continuous 3D function</strong> parametrized with a neural network. → walkaround limiting factors such as <em>shape discretization</em> and <em>parametrization</em></li>
+  <li>Texture representation independent of shape of the object.</li>
+  <li>(Compared to previous methods) More efficient than voxel based texture representation, easier to generalize into various topologies.</li>
+  <li>Combined with modern 3D reconstruction neural network, both 3D geometry and texture can be reconstructed end-to-end.</li>
+  <li>Able to generate suitable textures given 3D shape model and <strong><em>latent texture code</em></strong>.</li>
+</ul>
+
+<h1 id="key-concepts">Key Concepts</h1>
+
+<h2 id="texture-fields">Texture Fields</h2>
+
+<p>In contrast to discretized 3D shape representation such as meshes or voxels, approaches exploiting implicit surface (e.g. signed distance function) is an ideal starting point for texture reconstruction.</p>
+
+<p>Instead of embedding occupancy in the continuous function, we can think of embedding color information onto it. By combining the existing continuous function-based methods with the idea proposed, a <em>textured 3D model</em> can be reconstructed given:</p>
+
+<ol>
+  <li>Data for geometry reconstruction</li>
+  <li>An image for texture reconstruction</li>
+</ol>
+
+<p>Since both geometry &amp; texture reconstruction is done using the continuous function, the neural network approximating these can be optimized end-to-end.</p>
+
+<p>Let $t$ denote a function mapping a 3D point $\textbf{p} \in \mathbb{R}^3$ to a point in color space $\textbf{c} \in \mathbb{R}^3$. Then the function $t$ is in fact a 3D vector field:</p>
+
+\[t: \mathbb{R}^3 \to \mathbb{R}^3\]
+
+<p>And this function will be parametrized with parameters of neural network, $\theta$. However, <strong>we should add contraints on this function, which is a shape embedding</strong> $\mathcal{s} \in S$. This enables the network to predict well-fitting texture for given geometry by exploiting contextual geometric information (e.g. surface discontinuities).</p>
+
+<p>Further more, note that the geometry information alone cannot exactly specify what suitable texture for the given shape should be. To resolve this issue, we <strong>condition the network on the 2D image taken from an arbitrary viewpoint.</strong></p>
+
+<p>The image is encoded into a <strong>viewpoint-invariant global feature</strong> representation $\textbf{z} \in \mathcal{Z}$. Therefore, we don’t need to consider camera extrinsincs of where the image was taken. Furthermore, the image doesn’t necessarily depict the exact shape of 3D model. This is a huge advantage especially in real world applications where images contain limited information of 3D shapes.</p>
+
+<p>To summarize, a Texture Field can be defined as a mapping from 3D point $\textbf{p}$, shape embedding $\textbf{s}$, and conditional (probably representation, or latent vector) $\textbf{z}$ to a point $\textbf{c}$ in color space:</p>
+
+\[t_{\theta} = \mathbb{R}^3 \times \mathcal{S} \times \mathcal{Z} \to \mathbb{R}^3\]
+
+<p>In addition, not only the conditional case where $t_{\theta}$ is conditioned on $\textbf{z}$, the paper also deal with unconditional ones which exploits probabilistic generative models such as VAE, and GAN.</p>
+
+<h2 id="model-details">Model Details</h2>
+
+<p><img class="img-fluid" src="/assets/post-images/TextureFields/texturefields_model_overview.png" />
+<span class="caption text-muted">Figure 2. <b>Model Overview</b>. Colored arrows show alternative pathways. Red for conditional, green for GAN, and blue for VAE model. The blue and red boxes denote trainable components of the model, parametrized through neural networks.</span></p>
+
+<h3 id="shape-encoder">Shape Encoder</h3>
+
+<p>To generate shape embedding $\textbf{s}$, <strong>points are sampled uniformly from the input shape</strong> (typically triangular mesh) and they’re <strong>passed to a PointNet encoder</strong>. This network architecture generates <strong>fixed-dimensional shape embedding</strong> $\textbf{s}$.</p>
+
+<h3 id="image-encoder-conditional-model">Image Encoder (Conditional Model)</h3>
+
+<p><strong>An input image</strong> depicting the appearance of 3D shape from specific viewpoint is <strong>encoded into a fixed-dimensional latent code</strong> $\textbf{z}$ using <strong>pre-trained residual network</strong> (ResNet).</p>
+
+<h3 id="texture-field">Texture Field</h3>
+
+<p>Given shape embedding $\textbf{s}$ and image latent code $\textbf{z}$, the Texture Field predicts a color value $\textbf{c}_i$ for any point $\textbf{p}_i$ on the surface of 3D shape. It sounds like we can color 3D meshes directly, but it’s not an easy work since additional UV-mapping is required. Thus, <strong>we shall train our model in 2D image space rather than raw 3D space</strong> for regularity and efficiency.</p>
+
+<p>To this end, <strong>depth maps</strong> $\textbf{D}$ and <strong>corresponding color images</strong> $\textbf{X}$ from <strong>arbitrary viewpoints should be rendered</strong>. In this case, OpenGL is used. → 🤔🤔🤔 <strong>SERIOUSLY?</strong> 🤔🤔🤔</p>
+
+<p>Then the color at pixel $\textbf{u}_i$ and depth $d_i$ is predicted as:</p>
+
+\[\hat{\textbf{c}_i} = t_{\theta}(d_i \textbf{R}\textbf{K}^{-1}\textbf{u}_i + \textbf{t}, \textbf{s}, \bold{z})\]
+
+<p>where $i$ denotes the index for pixels with finite depth values $d_i$ and $i \in {1, …, N}$.</p>
+
+<p>Here, $N$ denotes the number of foreground pixels in the rendered image (i.e. pixels where the object is visible). The camera intrinsic is denoted by $\bold{K} \in \mathbb{R}^{3 \times 3}$, and extrinsics are denoted by $\bold{R} \in \mathbb{R}^{3 \times 3}$ (orientation), and $\bold{t} \in \mathbb{R}^3$ (translation), respectively. And pixel coordinate $\bold{u}_i$ is represented in homogeneous coordinates.</p>
+
+<p>The predicted color $\hat{\bold{c}_i}$ is compared to the ground truth pixel color $\bold{c}_i$ in the rendered image $\bold{X}$ during training.</p>
+
+<h2 id="training">Training</h2>
+
+<h3 id="conditional-setting">Conditional Setting</h3>
+
+<p>In this case, the image embedding $\bold{z}$ is passed to the network. The network $t_{\theta}(\bold{p}, \bold{s}, \bold{z})$ is trained in a supervised setting by minimizing $\ell_1$-loss between the predicted image $\hat{\bold{X}}$ and the rendered image $\bold{X}$.</p>
+
+\[\mathcal{L}_{cond} = \frac{1}{B}\sum_{b=1}^{B}\sum_{i=1}^{N_b} \vert\vert t_{\theta}(\bold{p}_{b_i}, \bold{s}_b, \bold{z}_b) - \bold{c}_{b_i} \vert\vert_{1}\]
+
+<p>Here, $B$ stands for batch size. <strong>Each element of the mini batch represents an image with $N_b$ foreground pixels.</strong> Also, shape encoding $\bold{s}_b$ and conditional image encoding $\bold{z}_b$ depends on the parameters of the shape &amp; image encoder networks (PointNet for shape, ResNet for image). Using the loss above, <strong>three networks - shape encoder, image encoder, and Texture Field - are trained jointly.</strong></p>
+
+<h3 id="unconditional-setting">Unconditional Setting</h3>
+
+<p>In the unconditional setting, <strong>the model is given only the 3D shape as its input.</strong> There’s no information about the appearance of it. This is quite difficult problem to tackle - giving an object plausible appearance without any information about it - so we need to utilize probabilistic approaches.</p>
+
+<p>First, we tackle this problem with <em>conditional GAN,</em> where the generator is conditioned on the 3D shape. Then, the generator is represented as a Texture Field $t_{\theta} : \mathbb{R}^3 \times \mathcal{S} \times \mathcal{Z} \to \mathbb{R}^3$ which maps the latent code $\bold{z}$ for every given 3D location $\bold{p}_i$ conditioned on the shape embedding $\bold{s}$ to an RGB image $\hat{\bold{X}}$:</p>
+
+\[\hat{\bold{X}} = G_{\theta} (\bold{z}_b \vert \bold{D}_b, \bold{s}_b) = \{ t_{\theta}(\bold{p}_{b_i}, \bold{s}_b, \bold{z}_b) \vert i \in \{1,..., N_b\}\}\]
+
+<p>The standard image-based discriminator $D_{\phi}(\bold{X}_b \vert \bold{D}_b)$ conditioned on the input depth image $D_b$ is used for training. That is, when passing the input image, the depth map is concatenated to it. Also, non-saturating GAN loss with $<a href="https://paperswithcode.com/method/r1-regularization">R_1$-regularization</a> is used for training.</p>
+
+<p>Secondary strategy for this problem is to use <em>conditional VAE</em> (cVAE)<em>.</em> In this setting, the <strong>encoder network predicts mean $\mu$ and variance $\sigma$ of which the latent vector $\bold{z}$ will be sampled from given image $\bold{X}$ and shape embedding $\bold{s}$.</strong> Then <strong>the Texture Field is now used as decoder, but this time taking sampled latent vector from the predicted distribution</strong>, not extracted by image encoder in conditional setting. Then we minimize the following variational lower bound:</p>
+
+\[\mathcal{L}_{VAE} = \frac{1}{B} \sum_{b=1}^{B} [ \beta KL(q_{\phi}(\bold{z} \vert \bold{X}_b, \bold{s}_b) \vert\vert p_0(\bold{z}_b)) + \sum_{i=1}^{N_b}\vert\vert t_{\theta}(\bold{p}_{b_i}, \bold{s}_b, \bold{z}_b) - \bold{c}_{b_i} \vert\vert_1]\]
+
+<p>Here, we assume that the distribution of “extracted” latent vector $\bold{z}_b$ follows the standard normal distribution, that is $\bold{z}_b \sim \mathcal{N}(\bold{z}, 0, \bold{I})$.</p>
+
+<p>$<strong>\beta$ is a trade-off parameter</strong> between the KL-divergence and the reconstruction loss (the second term), is usually set to 1 in practice.</p>
+
+<p>Also, as typical VAE models do, reparametrization trick is applied here.</p>
+
+<h1 id="implementation-details">Implementation Details</h1>
+
+<h2 id="quick-look">Quick Look</h2>
+
+<ol>
+  <li><strong>Texture Field</strong> $t_{\theta}(\cdot, \bold{s}, \bold{z})$: Fully connected ResNet</li>
+  <li><strong>Image Encoder</strong>: ResNet-18 architecture. Pre-trained on ImageNet</li>
+  <li><strong>Shape Encoder</strong>: Adopted version of PointNet</li>
+  <li><strong>GAN discriminator &amp; VAE Encoder</strong>: Adopted from models introduced in this <a href="https://www.notion.so/Which-training-methods-for-GANs-do-actually-converge-ab13511f53e440ceab2016344ebffd78">paper</a>.</li>
+  <li>Supervised (conditional) model and VAE is optimized with Adam with $\alpha = 1e-4$.</li>
+  <li>GAN is trained with alternating gradient using the RMSProp optimizer with $\alpha = 1e-4$.</li>
+</ol>
+
+<h2 id="texture-field-1">Texture Field</h2>
+
+<p><img src="Texture%20Fields%20Learning%20Texture%20Representations%20in%20a42673373e954600a0ab8a70f5f2be42/_2021-06-22_15.44.34.png" alt="Texture%20Fields%20Learning%20Texture%20Representations%20in%20a42673373e954600a0ab8a70f5f2be42/_2021-06-22_15.44.34.png" /></p>
+
+<p>Figure 3. <strong>Texture Field Structure Overview</strong>.</p>
+
+<h3 id="description">Description</h3>
+
+<p>The novel architecture for generating texture color values for corresponding input points. While other components may vary, this one is used for all experiments introduced in this paper. The network consists of blocks of ResNet building blocks, <strong>note that the embedding vectors $\bold{s}$, $\bold{z}$ are first concatenated, and then injected to EACH block.</strong> Different number of ResNet blocks are used for different experiments:</p>
+
+<ul>
+  <li>$L = 6$ for the single image texture reconstruction (conditional)</li>
+  <li>$L=4$ for the generative models</li>
+</ul>
+
+<h3 id="inputs">Inputs</h3>
+
+<ol>
+  <li>A collection of $N$ 3D position vector $\bold{p}_i$, where $i =1,…, N$</li>
+  <li>Fixed-length shape embedding vector $\bold{s}$</li>
+  <li>Fixed-length latent vector $\bold{z}$ (either extracted from provided image, or sampled from probability distributions)</li>
+</ol>
+
+<h3 id="outputs">Outputs</h3>
+
+<ol>
+  <li>A collection of $N$ color vector $\bold{c}_i$ associated with each $\bold{p}_i$, where $i = 1,…, N$</li>
+</ol>
+
+<h2 id="shape-encoder-1">Shape Encoder</h2>
+
+<p><img src="Texture%20Fields%20Learning%20Texture%20Representations%20in%20a42673373e954600a0ab8a70f5f2be42/_2021-06-22_15.44.56.png" alt="Texture%20Fields%20Learning%20Texture%20Representations%20in%20a42673373e954600a0ab8a70f5f2be42/_2021-06-22_15.44.56.png" /></p>
+
+<p>Figure 4. <strong>Shape Encoder Structure Overview</strong>.</p>
+
+<h3 id="description-1">Description</h3>
+
+<p>PointNet based encoder for generating latent vectors corresponding to the given shapes. <strong>Note that the shape embedding $\bold{s}$ is a global feature of the input point cloud.</strong></p>
+
+<h3 id="inputs-1">Inputs</h3>
+
+<ol>
+  <li>Set of $M$ points of a point cloud sampled from the surface of target shape</li>
+</ol>
+
+<h3 id="outputs-1">Outputs</h3>
+
+<ol>
+  <li>Fixed-length shape embeddig vector $\bold{s}$</li>
+</ol>
+
+<h3 id="outputs-2">Outputs</h3>
+
+<h2 id="image-encoder-conditional-setting-only">Image Encoder (Conditional setting ONLY)</h2>
+
+<p><img src="Texture%20Fields%20Learning%20Texture%20Representations%20in%20a42673373e954600a0ab8a70f5f2be42/_2021-06-22_15.45.11.png" alt="Texture%20Fields%20Learning%20Texture%20Representations%20in%20a42673373e954600a0ab8a70f5f2be42/_2021-06-22_15.45.11.png" /></p>
+
+<p>Figure 5. <strong>Image Encoder Structure Overview</strong>.</p>
+
+<h3 id="description-2">Description</h3>
+
+<p>ResNet based encoder for generating latent vectors corresponding to the given images.</p>
+
+<h3 id="inputs-2">Inputs</h3>
+
+<ol>
+  <li>Image depicting the appearance of the target shape</li>
+</ol>
+
+<h3 id="outputs-3">Outputs</h3>
+
+<ol>
+  <li>Fixed-length image embedding $\bold{z}$</li>
+</ol>
+
+<h2 id="vae-encoder">VAE Encoder</h2>
+
+<p><img src="Texture%20Fields%20Learning%20Texture%20Representations%20in%20a42673373e954600a0ab8a70f5f2be42/_2021-06-22_15.45.36.png" alt="Texture%20Fields%20Learning%20Texture%20Representations%20in%20a42673373e954600a0ab8a70f5f2be42/_2021-06-22_15.45.36.png" /></p>
+
+<p>Figure 6. <strong>VAE Encoder Structure Overview</strong>.</p>
+
+<h2 id="gan-discriminator">GAN Discriminator</h2>
+
+<p><img src="Texture%20Fields%20Learning%20Texture%20Representations%20in%20a42673373e954600a0ab8a70f5f2be42/_2021-06-22_15.47.41.png" alt="Texture%20Fields%20Learning%20Texture%20Representations%20in%20a42673373e954600a0ab8a70f5f2be42/_2021-06-22_15.47.41.png" /></p>
+
+<p>Figure 7. <strong>GAN Discriminator Structure Overview</strong>.</p>
+
+<h2 id="nvs">NVS</h2>
+
+<p><img src="Texture%20Fields%20Learning%20Texture%20Representations%20in%20a42673373e954600a0ab8a70f5f2be42/_2021-06-22_15.47.54.png" alt="Texture%20Fields%20Learning%20Texture%20Representations%20in%20a42673373e954600a0ab8a70f5f2be42/_2021-06-22_15.47.54.png" /></p>
+
+<p>Figure 8. <strong>Novel View Synthesis (NVS) Structure Overview</strong>. This module can replace the Texture Field, and used for ablation study discussed later.</p>
+
+<h1 id="experimental-details">Experimental Details</h1>
+
+<h2 id="experiment-overview">Experiment Overview</h2>
+
+<p>The experiments can be categorized into three categories:</p>
+
+<ol>
+  <li><strong>Representation power</strong>: analyze how well the Texture Field can represent high frequency textures when trained on a single 3D object</li>
+  <li><strong>Single view texture reconstruction</strong>: Predict full texture of 3D objects given only the 3D shape and a single view of it.</li>
+  <li><strong>Generative setting</strong>: Generate textures of 3D shapes without providing any image to the model. Instead, embedding $\bold{z}$ is sampled from some distributions.</li>
+</ol>
+
+<h2 id="baseline-overview">Baseline Overview</h2>
+
+<p>There are three baselines for ablation studies:</p>
+
+<ol>
+  <li><strong>Projective texture mapping</strong>: Exploit camera information to find corresponding color value for each vertex used in this paper.</li>
+  <li><strong>Novel-View-Synthesis (NVS)</strong>: Uses the same image encoder, but apply UNet for predicting color values instead of Texture Field.</li>
+  <li><strong>Im2Avatar</strong>: Voxel-based 3D shape &amp; texture reconstruction pipeline. The official implementation was used.</li>
+</ol>
+
+<h2 id="dataset">Dataset</h2>
+
+<ol>
+  <li>‘cars’, ‘chairs’, ‘airplanes’, and ‘tables’ categories from <strong>ShapeNet</strong> dataset is used.</li>
+  <li>For conditional setting, images passed to the image encoder were pre-rendered.</li>
+  <li>For images &amp; depth maps passed to Texture Field, 10 images and depth maps were rendered per object from random viewpoints in the upper hemisphere of models.</li>
+</ol>
+
+<h2 id="metrics">Metrics</h2>
+
+<p>Consider three different metrics in <strong>image space</strong>.</p>
+
+<ol>
+  <li><strong>Frechet Inception Distance (FID)</strong>: Common metric between distributions of images and widely used in GAN models.</li>
+  <li><strong>Structure Similarity Image Metric (SSIM)</strong>: More precise measurement for distance between predicted view and ground truth on a per-instance basis (i.e. not in the level of probability distributions, but in each individual images from each distributions).</li>
+  <li><strong>Feature-$\ell_1$-metric</strong>: Captures the global properties of images, due to the characteristic of <em>SSIM capturing mostly local properties of images</em>. <strong>This metric is computed as the mean absolute distance between two points in <em>feature space</em></strong>, and <strong>Inception network</strong> is used to map predicted &amp; ground truth images to the feature space.</li>
+</ol>
+
+<h2 id="experiment-1-representation-power">Experiment 1. Representation Power</h2>
+
+<p>The purpose of this experiment is to check the upper bound of the reconstruction quality by overfitting the Texture Field with training data. At the same time, voxel-based approach is used to generate representation for comparison. <strong>→ Well, is this really good representation…?</strong></p>
+
+<p><img src="Texture%20Fields%20Learning%20Texture%20Representations%20in%20a42673373e954600a0ab8a70f5f2be42/_2021-06-22_23.06.43.png" alt="Texture%20Fields%20Learning%20Texture%20Representations%20in%20a42673373e954600a0ab8a70f5f2be42/_2021-06-22_23.06.43.png" /></p>
+
+<h2 id="experiment-2-single-image-texture-reconstruction">Experiment 2. Single Image Texture Reconstruction</h2>
+
+<p>In this experiment, the network is given a 3D model with a 2D image of the object from a random camera view. Among many kinds of models introduced throughout the paper, conditional setting is used for training. At test phase, the model undergoes three different settings:</p>
+
+<ol>
+  <li>Input ground truth 3D shapes along with synthetic renderings of the object</li>
+  <li>Combine the method with 3D shape reconstruction pipeline → Full 3D shape &amp; texture reconstruction <strong>from a single shot of an object</strong></li>
+  <li>Real world data → Pictures taken from real camera together with similar shapes in ShapeNet dataset</li>
+</ol>
+
+<p>And the results from each of these experiments (for details, refer to the paper):</p>
+
+<ol>
+  <li><strong>GT shapes &amp; Synthetic images</strong>: Qualitative results are promising compared to baseslines (projection, NVS). Texture Field reached the top in both FID and Features-$\ell_1$ distance while NVS achieved the best SSIM. This is because of the characteristic of SSIM capturing local information. <strong>However, global feature is more important when trying to make plausible, natural output.</strong></li>
+  <li><strong>Full reconstruction pipeline</strong>: Texture Fields outperforms baselines both in quantitative &amp; qualitative analysis.</li>
+  <li><strong>Real images</strong>: The model generalizes reasonably considering that the model is trained with synthetic data only. <strong>→ So they say..? Definitely need to check this out in action!</strong></li>
+</ol>
+
+<h2 id="experiment-3-unconditional-model">Experiment 3. Unconditional Model</h2>
+
+<p>Check whether the Texture Field can be applied in generative tasks, where the model is given only 3D shape information without anything about apperance. To this end, the conditional VAE and conditional GAN models were trained with models from ShapeNet’s ‘cars’ category.</p>
+
+<p>During training, we supply t<strong>arget images &amp; associated depth maps to the model but input views</strong> (more precisely, image embedding $\bold{z}$). Instead, $\bold{z}$ is sampled from random distribution which either standard normal distribution or distribution formed in VAE manner.</p>
+
+<p>It seems the model generates textures for models.. but they’re mostly blurry in VAE and contains lots of artifacts in GANs. <strong>→ Still far from there!</strong></p>
+
+<p>In the case of VAE, additional experiments were done such as:</p>
+
+<ol>
+  <li>Interpolations in the latent space giving the smooth texture interpolation. <strong>→ VAE learns meaningful latent space</strong></li>
+  <li><strong>Texture transfer</strong> from one model to another is quite plausible.</li>
+</ol>
+
+<h1 id="conclusion">Conclusion</h1>
+
+<ol>
+  <li>Texture Field can predict high frequency textures from just a single object view.</li>
+  <li>While there are many points to be improved, the method can also be used as generative models for textures.</li>
+</ol>
+:ET
