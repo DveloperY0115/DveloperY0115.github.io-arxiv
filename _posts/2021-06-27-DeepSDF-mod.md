@@ -12,4 +12,4 @@ background: '/img/posts/deepsdf/deepsdf_overview.png'
 - Introduce a method of **parametrizing signed distance function** representing shapes of objects with neural network.
 - Use **audo-decoder** for learning latent space of each shapes instead of fitting the network to each instance belonging to some category **→ Compact, and generalizable!**
 
-![deepsdf_overview](https://i.imgur.com/J4cBFLp.png)
+<img src="/assets/post-images/DeepSDF/deepsdf_overview.png" alt="DeepSDF_Overview" width="1000"/>
