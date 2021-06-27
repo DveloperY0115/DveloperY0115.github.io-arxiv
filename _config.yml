@@ -2,7 +2,6 @@ title:              DveloperY0115's Blog
 email:              dreamy1534@kaist.ac.kr
 description:        A blog of computer science enthusiast
 author:             DveloperY0115 (Seungwoo Yoo)
-baseurl:            "/blog"
 url:                "https://dvelopery0115.github.io"
 
 # Social Profiles
@@ -17,7 +16,6 @@ google_analytics:   UA-XXXXXXXXX-X # out your google-analytics code
 
 # Build settings
 markdown: kramdown
-theme: jekyll-theme-clean-blog
 highlighter: rouge
 lsi: false
 excerpt_separator: "\n\n"
