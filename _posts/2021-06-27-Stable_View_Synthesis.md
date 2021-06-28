@@ -23,7 +23,7 @@ background: '/assets/post-images/SVS/SVS_method_overview.png'
 
 **The goal is to render a plausible, realistic image** $\mathcal{O}$ that would've seen from a new viewpoint specified by transform $(\textbf{R}_t, \textbf{t}_t)$ and camera intrinsic $\textbf{K}_t$.
 
-At the core is a 3D geometric scaffold. In order to build it, various methods like standard SfM (Structure from Motion), MVS (Multi-View Stereo), and surface reconstructio are used.
+At the core is a 3D geometric scaffold. In order to build it, various methods like standard SfM (Structure from Motion), MVS (Multi-View Stereo), and surface reconstruction are used.
 
 First, SfM is ran to extract camera instrinsics $$\{ \textbf{K}_n \}_{n=1}^{N}$$ as well as camera poses such as rotation matrices $$\{ \textbf{R}_n \}_{n=1}^{N}$$ and translation vectors $$\{ \textbf{t}_n \}_{n=1}^{N}$$ from the input images.
 
