@@ -13,10 +13,6 @@ background: '/assets/post-images/PhotoShape/PhotoShape_PhotoShapes.png'
 <img class="img-fluid" src="/assets/post-images/PhotoShape/PhotoShape_PhotoShapes.png">
 <span class="caption text-muted">Figure 1. <b>Fully automatic texturing of 3D shapes with SV-BRDF models</b>.</span>
 
-# ⚠️ Problem Settings ⚠️
-
-**Heads up, analyze the problem setting (input, processing step, output) of this study carefully!!**
-
 # Key Contributions
 
 - Propose an approach to **automatically assign high-quality, realistic appearance models to large scale 3D shape collections** → Jointly leverage three types of online data - shape collections, material collections, and photo collections
