@@ -1,4 +1,4 @@
-I"kj<h1 id="motivations">Motivations</h1>
+I"�i<h1 id="motivations">Motivations</h1>
 
 <ul>
   <li>Lack of models with photorealistic appearance in online 3D shape repositories <strong>→ Increasing demand of repository containing photorealistic appearance model along with actual 3D shapes</strong></li>
@@ -7,10 +7,6 @@
 
 <p><img class="img-fluid" src="/assets/post-images/PhotoShape/PhotoShape_PhotoShapes.png" />
 <span class="caption text-muted">Figure 1. <b>Fully automatic texturing of 3D shapes with SV-BRDF models</b>.</span></p>
-
-<h1 id="️-problem-settings-️">⚠️ Problem Settings ⚠️</h1>
-
-<p><strong>Heads up, analyze the problem setting (input, processing step, output) of this study carefully!!</strong></p>
 
 <h1 id="key-contributions">Key Contributions</h1>
 
