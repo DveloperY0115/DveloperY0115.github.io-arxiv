@@ -5,7 +5,7 @@ use_math: true
 background: '/assets/post-images/PhotoShape/PhotoShape_PhotoShapes.png'
 ---
 
-# Motivations
+# Motivation
 
 - Lack of models with photorealistic appearance in online 3D shape repositories **→ Increasing demand of repository containing photorealistic appearance model along with actual 3D shapes**
 - **Given a 3D shape of a chair consists of several parts, how can we design an automated pipeline that assigns proper materials to each part and producing plausible output?**
