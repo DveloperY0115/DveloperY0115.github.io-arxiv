@@ -93,7 +93,7 @@ Obviously, the equation of pulling operation is also valid in the case of unsign
 
 In the figure 2, one can easily observe that the gradient of signed distance field has constant value as a query point $\textbf{q}$ moves along a particular direction. Meanwhile, for the case of unsigned distance field, there's a discontinuity when the $\textbf{q}$ is actually on the surface. Thus, from this observation, we can derive that a continuous function approximated by MLP can automatically converge to an SDF (not uSDF) using the proposed loss.
 
-> **Theorem 1.**
+**Theorem 1.**
 A continuous function $f$ implemented by MLP which is trained to minimize $\ell_2$ loss $$ d(\{ \textbf{t}_{i}^{\prime}\}, \{ \textbf{t}_{i}\}) = \frac{1}{I} \sum_{i \in [1, I]} \lVert \textbf{t}_{i}^{\prime} - \textbf{t}_{i} \rVert_{2}^{2} $$, can converge to a signed distance function if the equation $f(\textbf{p} - \textbf{N} \Delta t) = - f (\textbf{p} + \textbf{N} \Delta t)$ is satisfied at any point $\textbf{p}$ on the surface $(f(\textbf{p})=0)$, where $\textbf{N}$ is the normal at $\textbf{p}$, $\lVert \Delta t\rVert < \mu$ and $\mu$ indicates a small number.
 
 **Proof of Theorem 1.**
