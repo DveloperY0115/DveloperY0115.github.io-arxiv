@@ -5,7 +5,7 @@ use_math: true
 background: '/assets/post-images/NeuralPull/NeuralPull_fig1.png'
 ---
 
-# Motivations
+# Motivation
 
 - Reconstructing continuous surfaces from 3D point clouds is a fundamental operation in 3D geometry processing.
 - Recent approach using neural network to learn SDF gives promising results → Adopt this idea for 3D point cloud to surface reconstruction.
