@@ -1,0 +1,303 @@
+I"�a<h1 id="motivation">Motivation</h1>
+
+<ul>
+  <li>Neural volume rendering became popular due to its recent success in synthesizing novel views of a scene from a sparse set of input images.</li>
+  <li>However, the geometry learned by neural volume rendering techniques was modeled with a generic density function → geometry is extracted using an arbitrary level set of the density function resulting in <strong>noisy, and low fidelity reconstruction</strong>.</li>
+</ul>
+
+<p><strong>→ Main goal: Improving geometry representation and reconstruction in neural volume rendering</strong></p>
+
+<h1 id="key-contributions">Key Contributions</h1>
+
+<ul>
+  <li>Combine and get the best of two different fields: <em>Volume rendering</em> &amp; <em>Neural implicit surfaces</em></li>
+  <li>Propose a way to <strong>model the volume density as a function of the geometry</strong>. This is in contrast to previous works where the <em>geometry was modeled as a function of the volume density</em>.</li>
+  <li>Defines the volume density function as Laplace’s cumulative distribution function (CDF) applied to a SDF representation.</li>
+</ul>
+
+<p>The advantages of this approach are as follows:</p>
+
+<ol>
+  <li>This provides <strong>inductive bias to the geometry learned</strong> during neural volume rendering process.</li>
+  <li>This facilitates a bound on the opacity approximation error, <strong>enabling accurate sampling along each viewing rays</strong>. → Accurate sampling is important since this provides a precise coupling of geometry and radiance! Otherwise, the method might fail to capture proper radiance samples for a pixel, end up with either missing color or extended (hallucinated) geometry.</li>
+  <li>This allows efficient <strong>unsupervised disentanglement of shape and appearance</strong>.</li>
+</ol>
+
+<hr />
+
+<h1 id="method">Method</h1>
+
+<p>This work introduces a novel parametrization for volume density, defined as transformed signed distance function. Later we shall see how this new method can be incorporated into volume rendering process. Also, we will discuss a bound of the error in the opacity approximation and the advanced sampling strategy reflecting this discovery.</p>
+
+<h2 id="density-as-transformed-sdf">Density as Transformed SDF</h2>
+
+<p>Let the set $\Omega \subset \mathbb{R}^{3}$ represent the space occupied by some object in $\mathbb{R}^{3}$, and $\mathcal{M} = \partial \Omega$ be its boundary surface. Let \(\textbf{1}_{\Omega}\) be the $\Omega$ indicator function, and $d_{\Omega}$ be the signed distance function to its boundary $\mathcal{M}$,</p>
+
+\[\textbf{1}_{\Omega}(\textbf{x}) = \begin{cases} 1 &amp; \text{if } \textbf{x} \in \Omega \\
+0 &amp; \text{if } \textbf{x} \notin \Omega \end{cases},  \,\, \text{and} \,\,
+ d_{\Omega}(\textbf{x}) = (-1)^{\textbf{1}_{\Omega}(\textbf{x})} \min_{\textbf{y} \in \mathcal{M}} \lVert \textbf{x} - \textbf{y} \rVert_{2}\]
+
+<p>where $\lVert \cdot \rVert_{2}$ is the 2-norm.</p>
+
+<p>In typical neural volume rendering methods, the volume density \(\sigma: \mathbb{R}^{3} \to \mathbb{R}_{+}\) is a scalar volumetric function, where $\sigma(\textbf{x})$ is the rate that light is occluded at point $\textbf{x}$. Previously, this density function $\sigma$ was modeled with a general purpose MLP. Instead, this work suggests to model the density using a certain transformation of a learnable SDF $d_{\Omega}$,</p>
+
+\[\sigma(\textbf{x}) = \alpha \Psi_{\beta} (-d_{\Omega}(\textbf{x}))\]
+
+<p>where $\alpha$, $\beta &gt; 0$ are learnable parameters, and $\Psi_{\beta}$ is the cumulative distribution function (CDF) of the Laplace distribution with zero mean and $\beta$ scale,</p>
+
+\[\Psi_{\beta}(s) = \begin{cases}
+\frac{1}{2} \exp (\frac{s}{\beta}) &amp; \text{if } s \leq 0 \\
+1 - \frac{1}{2} \exp(- \frac{s}{\beta}) &amp; \text{if } s &gt; 0
+ \end{cases}\]
+
+<p>The figure below shows an example of such density and SDF. Note that as $\beta \to 0$, the density function $\sigma$ converges to a scaled indicator function of $\Omega$, that is, $\sigma \to \alpha \textbf{1}_{\Omega}$ for all points $\textbf{x} \in \Omega - \mathcal{M}$.</p>
+
+<p><img class="img-fluid" src="/assets/post-images/VolSDF/VolSDF_fig1.png" />
+<span class="caption text-muted">Figure 1. <b>VolSDF overview</b>. Given a set of input images (left most), a network learns a volumetric density (center-left), defined by a SDF (center-right), to produce a neural rendering (right most).</span></p>
+
+<p>Intuitively, the density $\sigma$ models a homogeneous solid with a constant density $\alpha$ that smoothly decreases near the solid’s boundary. And the rate of decreasing is controlled by $\beta$. There are two advantages we can expect by defining the density in this way:</p>
+
+<ol>
+  <li>It provides a useful inductive bias for the surface geometry $\mathcal{M}$, and provides a principled way for reconstruction. → geometry is concrete, rather than being arbitrary level set which often fails to reconstruct complex shapes</li>
+  <li>This form of density facilitates <strong>a bound on the error of the <em>opacity</em></strong> (or, equivalently <em>transparency</em>) of the rendered volume. → Aids accurate sampling! It’s hard to define such bounds in MLP-based approaches.</li>
+</ol>
+
+<h2 id="volume-rendering-of-sigma">Volume Rendering of $\sigma$</h2>
+
+<p>Before jumping into the details, let’s briefly review the volume rendering principles and the numerical integration used to approximate the analytic integration involving in computing pixel color.</p>
+
+<p>In the volume rendering we consider a ray $\textbf{r}$ emanating from a camera position $\textbf{c} \in \mathbb{R}^{3}$ in direction $\textbf{v} \in \mathbb{R}^{3}$, $\lVert \textbf{v} \rVert = 1$, defined by $\textbf{r}(t) = \textbf{c} + t \textbf{v}$, $t \geq 0$. Long story short, volume rendering is the method that computes the weighted sum of radiance defined at each point in 3D space, along a ray direction. There are two important quantities involving in this computation:</p>
+
+<ol>
+  <li>The volume’s <em>opacity</em> $O$, or equivalently, its <em>transparency</em> $T$</li>
+  <li>The <em>light field</em> $L$</li>
+</ol>
+
+<p>The <em>transparency</em> function of the volume along a ray $\textbf{r}$, denoted $T$, indicates, for each $t \geq 0$, the probability that a light particle succeeds traversing the segment $[\textbf{c}, \textbf{r}(t)]$ without bouncing off,</p>
+
+\[T(t) = \exp (- \int_{0}^{t} \sigma(\textbf{r}(s))ds).\]
+
+<p>Intuitively, imagine that the situation that the integral in $\exp$ gets larger as $t$ increases. What would be such situation? As one might have guessed, when the ray travels through a volume in space filled with some object having non-negative density over its volume, the integral on the exponent will increase, and the transparency $T$ decays as a consequence.</p>
+
+<p>Then the <em>opacity</em> $O$ is the complement probability,</p>
+
+\[O(t) = 1 - T(t).\]
+
+<p>If we assume that transparency $T$ at a ray origin is one ($T(0)=1$, i.e. a ray can fully penetrate that point), and a ray will be eventually blocked ($T(\infty)=0$), then what happens to its complement is $O(0)=0$, $O(\infty)=1$. → $O$ is a monotonic increasing function ranging from 0 to 1. → $O$ <strong>is a CDF of some probability distribution!</strong></p>
+
+<p>Then the probability density function (PDF) related to $O$ can be found by differentiation,</p>
+
+\[\tau(t) = \frac{dO}{dt}(t) = \sigma(\textbf{r}(t))T(t).\]
+
+<p>In this context, the volume rendering equation is the expected light intensity along the ray,</p>
+
+\[I(\textbf{c}, \textbf{v}) = \int_{0}^{\infty} L(\textbf{r}(t), \textbf{n}(t), \textbf{v}) \tau(t)dt,\]
+
+<p>where $L$ is the light field of a scene, $\textbf{n}$ is the level-set’s normal, $\textbf{n}(t) = \nabla_{\textbf{r}} d_{\Omega}(\textbf{r}(t))$.</p>
+
+<p>The idea of conditioning the light field on the normal direction is inspired by the culture of computer graphics where the behaviors of BRDFs are often related to surface normal. And this disentanglement is proper choice for this work, since it’s aiming to separate geometry and radiance thus we can exploit surface normal during calculations.</p>
+
+<p>Then the integral above is approximated using a numerical quadrature, by calcuating the summation with finite number of samples $\mathcal{S} = { s_i }_{i=1}^{m}$, $0= s_1 &lt; s_2 &lt; \dots &lt; s_m = M$, where $M$ is some large constant:</p>
+
+\[I(\textbf{c}, \textbf{v}) \approx \hat{I}_{\mathcal{S}} (\textbf{c}, \textbf{v}) = \sum_{i=1}^{m-1} \hat{\tau}_{i} L_{i},\]
+
+<p>where the subscript $\mathcal{S}$ in \(\hat{I}_{\mathcal{S}}\) indicates the dependence of the approximation on the sample set $\mathcal{S}$, \(\hat{\tau}_{i} \approx \tau(s_i) \Delta s\) is the approximated PDF multiplied by the interval length, and $L_{i} = L(\textbf{r}(s_i), \textbf{n}(s_i), \textbf{v})$ is the value of light field at sample point.</p>
+
+<h3 id="sampling-strategy">Sampling Strategy</h3>
+
+<p>One of the drawbacks of the NeRF is that the method is heavily affected by the sampled point during intensity calculation. Since the PDF $\tau$ is often extremely concentrated near the object’s boundary (note that <em>shapes</em> we’re dealing with are mostly <em>surfaces (submanifold)</em> in 3D space), the choice of the sample points $\mathcal{S}$ has a dramatic effect on the numerical integration.</p>
+
+<p>One solution for this problem is to use adaptive sampling, by finding points that have most effect when determining pixel intensity with the inverse CDF $O^{-1}$. However, note that $O$ depends on the density model $\sigma$ (which is also approximated by MLP) thus is not given explicitly.</p>
+
+<p><img class="img-fluid" src="/assets/post-images/VolSDF/VolSDF_fig2.png" />
+<span class="caption text-muted">Figure 2. <b>Qualitative comparison between NeRF and VolSDF</b>. Note that NeRF suffers from salt and pepper artifacts.</span></p>
+
+<p>For example, NeRF used two layers of sampling by implementing <em>coarse network</em> and <em>fine network</em> to predict points having meaningful densities, and take those into account. As we shall see later, <strong>naive or crude approximation of $O$ would lead to a sub-optimal sample set $\mathcal{S}$ that misses, or over extend non-negligible $\tau$ values</strong>. This is the reason for the artifacts in the images rendered by NeRF. This work proposes a better solution, which works with a single density $\sigma$, and the set of samples $\mathcal{S}$ is computed using more sophiscated sampling algorithm based on an error bound for the opacity approximation.</p>
+
+<h2 id="bound-on-the-opacity-approximation-error">Bound on the Opacity Approximation Error</h2>
+
+<p>From now on, we will use the rectangle rule for developing a bound on the approximation error caused by approximating the opacity function of the density $\sigma$.</p>
+
+<p>For a set of samples \(\mathcal{T} = \{ t_i \}_{i=1}^{n}\), $0 = t_1 &lt; t_2 &lt; \dots &lt; t_n = M$, we let $\delta_{i} = t_{i+1} - t_{i}$, and $\sigma_{i} = \sigma(\textbf{r}(t_i))$. Given some $t \in (0, M]$, assume $t \in [t_k, t_{k+1}]$, and apply the rectnagle rule (i.e. left Riemann sum) to get the approximation:</p>
+
+\[\int_{0}^{t} \sigma(\textbf{r}(s))ds = \hat{R}(t) + E(t), \quad \text{where } \,\, \hat{R}(t) = \sum_{i=1}^{k-1} \delta_{i} \sigma_{i} + (t - t_{k}) \sigma_{k}\]
+
+<p>is the rectangle rule approximation, and $E(t)$ denotes the error in this approximation. Thus, the approximation of the opacity function follows naturally from its definition:</p>
+
+\[\hat{O}(t) = 1 - \exp (- \hat{R}(t)).\]
+
+<p>The primary goal of this section is to derive a uniform bound over $[0, M]$ to the approximation $\hat{O} \approx O$. The key idea is the derivative bound of the density $\sigma$ inside an interval along the ray $\textbf{r}$.</p>
+
+<h3 id="theorem-1">Theorem 1.</h3>
+
+<p><em>The derivative of the density $\sigma$ along a segment $[t_{i}, t_{i+1}]$ obeys the following bound:</em></p>
+
+\[\vert \frac{d}{ds} \sigma (\textbf{r} (s))\vert \leq \frac{\alpha}{2 \beta} \exp (- \frac{d_{i}^{\star}}{\beta}), \\ \text{where } \, d_{i}^{\star} = \max \{ 0, \frac{\vert d_{i+1} \vert + \vert d_{i} \vert - t_{i+1} + t_{i}}{2}\}\]
+
+<p><em>and $d_i = d_{\Omega} (\textbf{r}(t_i))$, $d_{i+1} = d_{\Omega} (\textbf{r} (t_{i+1}))$.</em></p>
+
+<hr />
+
+<h3 id="proof-of-theorem-1">Proof of Theorem 1.</h3>
+
+<p>Let $\Phi_{\beta}$ be the probability density function (PDF) of the Laplace distribution, whose CDF $\Psi_{\beta}$ was introduced earlier,</p>
+
+\[\Phi_{\beta}(s) = \frac{1}{2\beta} \exp (- \frac{\vert s \vert}{\beta}).\]
+
+<p>Then one can simply derive $\frac{d}{ds} \sigma(\textbf{r}(s)) = - \alpha \Phi_{\beta} ( - d_{\Omega} (\textbf{r})) \langle \nabla d_{\Omega} (\textbf{r}), \textbf{v} \rangle$. From the fact that $\lVert \textbf{v} \rVert =1$, and $\lVert \nabla d_{\Omega} (\textbf{x}) \rVert = 1$ for signed distance functions, we can use Cauchy-Schwarz inequality to show that $\vert \langle \nabla d_{\Omega} (\textbf{x}), \textbf{v} \rangle \vert \leq 1$. So far, we’ve showed that,</p>
+
+\[\vert \frac{d}{ds} \sigma (\textbf{r} (s)) \vert \leq  \alpha \Phi_{\beta} (- d_{\Omega} (\textbf{r})) =  \frac{\alpha}{2 \beta} \exp (- \frac{\vert d_{\Omega}(\textbf{r})\vert}{\beta}).\]
+
+<p>Then the only thing remains is to show that $d_{i}^{\star}$ is a lower bound to $\vert d_{\Omega} (\textbf{r}(s))\vert$ for $s \in [t_{i}, t_{i+1}]$. For brevity, let $D(s) = \vert d_{\Omega} (\textbf{r}(s))\vert$ .</p>
+
+<p>Since $D(t_i)$ is the positive distance to $\mathcal{M}$, \(D(s) &gt; (D(t_i) - (s - t_{i}))_{+}\), where \((a)_{+} = \max \{ a, 0\}\) (ReLU). Similarly, \(D(s) &gt; (D(t_{i+1}) - (t_{i+1} -s))_{+}\). Then a lower bound for $D(s)$ can be chosen by finding the minimum of $\max { 0, D(t_i) - (s - t_i), D(t_{i+1}) - (t_{i+1} - s)}$ over $s \in [s_{i}, s_{i+1}]$. There are two possibilities:</p>
+
+<ol>
+  <li>The intervals $[t_i - D(t_i), t_i + D(t_i)]$, and $[t_{i+1} - D(t_{i+1}), t_{i+1} + D(t_{i+1})]$ are disjoint. → $\vert d_{i+1} \vert + \vert d_{i} \vert &lt; t_{i+1} - t_{i}$</li>
+  <li>Two intervals are intersecting. → $\vert d_{i+1} \vert + \vert d_{i} \vert \geq t_{i+1} - t_{i}$</li>
+</ol>
+
+<p><strong>In the first case, the miminum is</strong> $d_{i}^{\star} = 0$. In the second case, the minimum is the point where $D(t_i) - (s - t_{i}) = D(t_{i+1}) - (t_{i+1} - s)$, implying,</p>
+
+\[s^{*} = \frac{(t_{i} + D(t_{i})) +(t_{i+1} - D(t_{i+1}))}{2}\]
+
+<p>then <strong>the minimum value $d_{i}^{\star}$ becomes:</strong></p>
+
+\[d_{i}^{\star} = \frac{\vert d_{i+1} \vert + \vert d_{i} \vert - t_{i+1} + t_{i}}{2}.\]
+
+<p>And this proves the theorem.</p>
+
+<hr />
+
+<p>The meaning of theorem 1 is that <strong>there exists an upper bound for the instantaneous rate of change of the density</strong> within the interval $[t_{i}, t_{i+1}]$, and further, <strong>it only depends on the unsigned distance $\vert d_i \vert$, $\vert d_{i+1} \vert$at the interval’s end points and the density parameters</strong> $\alpha$, $\beta$ (determine the distribution of density). This bound can be used to derived an error bound for the rectangle rule’s approximation of the opacity. Note that for a single interval $[t_i, t_{i+1}]$,</p>
+
+\[\begin{align*}
+\vert \int_{t_{i}}^{t_{i+1}} \sigma (\textbf{r}(s))ds - \delta_{i} \sigma_{i} \vert &amp;\leq \int_{t_{i}}^{t_{i+1}} \vert \sigma (\textbf{r}(s)) - \sigma(\textbf{r}(t_i))\vert ds \\ &amp;\leq \max_{s \in [t_{i}, t_{i+1}]} \vert \frac{d}{ds} \sigma (\textbf{r}(s)) \vert \frac{\delta_{i}^{2}}{2} 
+\end{align*}\]
+
+<p>Plugging the derivative bound from the theorem 1 provides the error bound:</p>
+
+\[\vert E(t) \vert \leq \hat{E}(t) = \frac{\alpha}{4\beta} (\sum_{i=1}^{k-1} \delta_{i}^{2} e ^{-\frac{d_{i}^{\star}}{\beta}} + (t - t_{k})^{2}e^{-\frac{d_{k}^{\star}}{\beta}}).\]
+
+<p>Then this equation leads to the following theorem on opacity error bound,</p>
+
+<h3 id="theorem-2">Theorem 2.</h3>
+
+<p><em>For $t \in [0, M]$, the error of the approximated opacity $\hat{O}$ can be bounded as follows:</em></p>
+
+\[\vert O(t) - \hat{O}(t) \vert \leq \exp (- \hat{R}(t))( \exp(\hat{E}(t)) - 1)\]
+
+<h3 id="proof-of-theorem-2">Proof of Theorem 2.</h3>
+
+<p>The bound is derived as follows:</p>
+
+\[\begin{align*}
+\vert O(t) - \hat{O}(t) \vert &amp;=  \vert \exp (- \hat{R}(t)) - \exp (- \int_{0}^{t} \sigma (\textbf{r}(s))ds)\vert \\ &amp;= \exp (- \hat{R}(t)) \vert 1 - \exp (- E(t))\vert \\ &amp;\leq \exp(-\hat{R}(t)) (\exp (\hat{E}(t)) - 1) \end{align*},\]
+
+<p>where the last inequality is valid since $\vert 1 - \exp (r) \vert \leq \exp (\vert r \vert) -1$ and the bound $\vert E(t) \vert \leq \hat{E}(t)$. And this is the end of the proof.</p>
+
+<hr />
+
+<p>Then, the opacity error for $t \in [t_{k}, t_{k+1}]$ can be bounded by noting that $\hat{E}(t)$, and consequently also $\exp (\hat{E}(t))$ are monotonically increasing in the interval, while $\exp (- \hat{R}(t))$ is monotonically decreasing in $t$. Therefore,</p>
+
+\[\max_{t \in [t_{k}, t_{k+1}]} \vert O(t) - \hat{O}(t) \vert \leq \exp (- \hat{R}(t_k)) (\exp(\hat{E}(t_{k+1}))-1).\]
+
+<p>Taking the maximum over all subintervals $[t_{k}, t_{k+1}] \subset [0, M]$ gives us a bound $B_{\mathcal{T}, \beta}$ as a function of $\mathcal{T}$ and $\beta$,</p>
+
+\[\max_{t \in [0, M]} \vert O(t) - \hat{O}(t) \vert \leq B_{\mathcal{T}, \beta} = \max_{k \in [n-1]} \{ \exp (- \hat{R}(t_{k})) (\exp (\hat{E}(t_{k+1})) -1)\},\]
+
+<p>where $\hat{R}(t_{0}) = 0$, and $[\ell] = { 1, 2, \dots, \ell}$, following the convention. Also, note that $n$ is the number of samples involving in the approximation.</p>
+
+<p>And we can further derive two useful lemmas using the results we’ve got so far:</p>
+
+<h3 id="lemma-1">Lemma 1.</h3>
+
+<p><em>Fix $\beta &gt; 0$. For any $\epsilon &gt; 0$, a sufficiently dense sampling $\mathcal{T}$ will provide $B_{\mathcal{T}, \beta} &lt; \epsilon$.</em></p>
+
+<p>This means that <strong>sufficiently dense sampling can reduce the error bound</strong> $B_{\mathcal{T}, \epsilon}$.</p>
+
+<h3 id="lemma-2">Lemma 2.</h3>
+
+<p><em>Fix $n &gt; 0$. For any $\epsilon &gt; 0$, a sufficiently large $\beta$ that satisfies</em></p>
+
+\[\beta \geq \frac{\alpha M^{2}}{4 (n-1) \log (1 + \epsilon)}\]
+
+<p><em>will provide $B_{\mathcal{T}, \beta} \leq \epsilon$.</em></p>
+
+<p>🤔 <strong>NOTE: Proof for lemmas are provided in the supplementary of the paper.</strong> 🤔</p>
+
+<h2 id="sampling-algorithm">Sampling algorithm</h2>
+
+<p>From the properties we’ve derived so far, we can develop an algorithm that chooses a set of samples $\mathcal{S}$ properly, reducing the approximation error as much as possible.</p>
+
+<p>This can be done by utilizing the derived bound to find samples $\mathcal{T}$ so that the difference between the true opacity and its approximation is less than $\epsilon$, concretely:  $\vert O - \hat{O} \vert \leq B_{\mathcal{T}, \beta} &lt; \epsilon$. Here, $\epsilon$, which can be interpreted as a tolerance to an error, is a hyper-parameter. After that, we perform inverse CDF sampling with $\hat{O}$.</p>
+
+<p>One simple, brute-force approach to reduce the approximation is to use lots of samples (obviously, and is also guaranteed by the lemma 1). However, <strong>the reason why we went through complicated mathematical stuffs is to do it more efficiently and cleverly</strong>.</p>
+
+<p><img class="img-fluid" src="/assets/post-images/VolSDF/VolSDF_fig2.png" />
+<span class="caption text-muted">Figure 3. <b>(Left) Qualitative evaluation of the sampling algorithm after 1, 2, and 5 iterations</b>. <b> </b>.Note that NeRF suffers from salt and pepper artifacts.</span></p>
+
+<p>Figure 3. <strong>(Left) Qualitative evaluation of the sampling algorithm after 1, 2, and 5 iterations</strong>. (Right) Visualization of the opacity and approximation error at each iteration**. Note that the approximated opacity successfully converges to the ground truth, yielding almost zero error.</p>
+
+<p>To simplify, the algorithm consists of following steps:</p>
+
+<p>The input is the error threshold  $\epsilon &gt; 0$; $\beta$</p>
+
+<ol>
+  <li>Start with a uniform sampling $\mathcal{T} = \mathcal{T}<em>{0}$, use lemma 2 to initially set a $\beta</em>{+} &gt; \beta$ that satisfies $B_{\mathcal{T}, \beta_{+}} \leq \epsilon$.</li>
+  <li>Upsample $\mathcal{T}$ to reduce $\beta_{+}$, adjust $\beta_{+} \leftarrow \beta_{\star}$. 
+Here, $\beta_{\star} \in (\beta, \beta_{+})$ such that $B_{\mathcal{T}, \beta_{\star}} = \epsilon$.</li>
+  <li>Repeat 2 until convergence (normally 5 times, so they say).</li>
+</ol>
+
+<p>After that we use $\mathcal{T}$ and $\beta_{+}$ to estimate $\hat{O}$ and use inverse CDF to get $m$ samples, forming a set of samples $\mathcal{S}$.</p>
+
+<h3 id="training">Training</h3>
+
+<p>The system consists of two MLPs:</p>
+
+<ol>
+  <li>$f_{\varphi}$ approximating the SDF of the learned geometry, as well as global geometry feature $z$ of dimension 256, i.e., $f_{\varphi}(\textbf{x}) = (d(\textbf{x}), z(\textbf{x})) \in \mathbb{R}^{1 + 256}$, whose parameters are denoted as $\varphi$.</li>
+  <li>$L_{\psi} (\textbf{x}, \textbf{n}, \textbf{v}, \textbf{z}) \in \mathbb{R}^{3}$ representing the scene’s light field with parameters $\psi$.</li>
+</ol>
+
+<p>Also, there are two additional learnable scalar parameters $\alpha$, and $\beta$ for modeling density. The authors set $\alpha = \beta^{-1}$ assuming infinite homogeneous density geometry in the scene. Thus, the set of learnable parameters are denoted as a vector $\theta = (\varphi, \psi, \beta)$ lying in $\mathbb{R}^{p}$.</p>
+
+<p>The dataset used consists of a collection of images with camera parameters. From this data, we can extract pixel level data: $(I_{p}, \textbf{c}<em>{p}, \textbf{v}</em>{p})$ for each pixel $p$, where $I_{p} \in \mathbb{R}^{3}$  is the pixel intensity, $\textbf{c}<em>{p}$ is the camera location, and $\textbf{v}</em>{p} \in \mathbb{R}^{3}$ is the viewing direction (from the location of camera to the pixel).</p>
+
+<p>Then, the loss consists of two terms:</p>
+
+\[\mathcal{L} (\theta) = \mathcal{L}_{\text{RGB}} (\theta) + \lambda \mathcal{L}_{\text{SDF}} (\varphi), \quad \text{where} \\
+
+\mathcal{L}_{\text{RGB}} (\theta) = \mathbb{E}_{p} \lVert I_{p} - \hat{I}_{\mathcal{S}} (\textbf{c}_p, \textbf{v}_p)\rVert_{1}, \quad\text{and} \\
+
+\mathcal{L}_{\text{SDF}}(\varphi) = \mathbb{E}_{\textbf{y}} (\lVert \nabla d(\textbf{y}) \rVert_{2} - 1)^{2},\]
+
+<p>where $\mathcal{L}<em>{\text{RGB}}$ is the rendering loss defined as $\ell_1$ distance between the ground truth pixel intensity $I</em>{p}$ and the approximated numerical integration for intensity $\hat{I}<em>{\mathcal{S}} (\textbf{c}</em>{p}, \textbf{v}<em>{p})$. And $\mathcal{L}</em>{\text{SDF}}$ is the Eikonal loss encouraging $d$ to approximate a signed distance function.</p>
+
+<h2 id="experiments">Experiments</h2>
+
+<p>🤔 <strong>I only include some qualitative results here. Please refer to the paper for full explanation.</strong> 🤔</p>
+
+<p>The method is compared with the previous methods on the task of multiview 3D surface reconstruction in datasets such as DTU and BlendedMVS. Unlike NeRF, as you shall see, this model successfully disentangles the geometry and appearance of the captured objects.</p>
+
+<p>![Volume%20Rendering%20of%20Neural%20Implicit%20Surfaces%20(VolS%200d1f9ac5c19d4ae3aefb30fcabd95cb3/_2021-07-06_17.32.59.png](Volume%20Rendering%20of%20Neural%20Implicit%20Surfaces%20(VolS%200d1f9ac5c19d4ae3aefb30fcabd95cb3/_2021-07-06_17.32.59.png)</p>
+
+<p>Figure 4. <strong>Qualitative results for reconstructed geometries of objects from the DTU dataset</strong>.</p>
+
+<p>![Volume%20Rendering%20of%20Neural%20Implicit%20Surfaces%20(VolS%200d1f9ac5c19d4ae3aefb30fcabd95cb3/_2021-07-06_17.33.49.png](Volume%20Rendering%20of%20Neural%20Implicit%20Surfaces%20(VolS%200d1f9ac5c19d4ae3aefb30fcabd95cb3/_2021-07-06_17.33.49.png)</p>
+
+<p>Figure 5. <strong>Qualitative results sampled from the BlendedMVS dataset.</strong> The rendered images and the underlying reconstructed geometries are shown in pairs.</p>
+
+<p>![Volume%20Rendering%20of%20Neural%20Implicit%20Surfaces%20(VolS%200d1f9ac5c19d4ae3aefb30fcabd95cb3/_2021-07-06_17.34.07.png](Volume%20Rendering%20of%20Neural%20Implicit%20Surfaces%20(VolS%200d1f9ac5c19d4ae3aefb30fcabd95cb3/_2021-07-06_17.34.07.png)</p>
+
+<p>Figure 6. <strong>VolSDF successfully disentangling geometry and appearance while NeRF cannot</strong>.</p>
+
+<h2 id="conclusions">Conclusions</h2>
+
+<ul>
+  <li>VolSDF, a volume rendering framework for implicit neural surfaces.</li>
+  <li>A novel way of representing volume density as a transformed version of the learned SDF which represents the geometry of the scene. → disentangles geometry from light field, improving geometry approximation</li>
+  <li>Mathematical analysis on the upper bound of numerical integration, and suggested more sophiscated sampling algorithm that can select samples that are critical for accurate geometry reconstruction, and light field prediction.</li>
+</ul>
+:ET
