@@ -167,8 +167,6 @@ PointNet based encoder for generating latent vectors corresponding to the given 
 
 1. Fixed-length shape embeddig vector $\textbf{s}$
 
-### Outputs
-
 ## Image Encoder (Conditional setting ONLY)
 
 <img class="img-fluid" src="/assets/post-images/TextureFields/texturefields_image_encoder.png">
