@@ -1,0 +1,342 @@
+I",w<h1 id="motivation">Motivation</h1>
+
+<ul>
+  <li>Neural rendering methods gain huge attention due to their success in various inverse graphics tasks - geometry reconstruction, novel view synthesis, etc.</li>
+  <li>However, <strong>these methods do not factorize appearance into lighting and materials</strong>, thus <strong>it’s impossible to do material editing or relighting in physically plausible ways</strong>.</li>
+  <li>Besides, typical multi-view inverse rendering methods tackle the problems in constrained settings - assuming varying illumination across input images, capturing objects on a turnable with a fixed camera, etc.</li>
+</ul>
+
+<h1 id="key-contributions">Key Contributions</h1>
+
+<ul>
+  <li>An entire framework including a fully differentiable renderer which can reconstruct geometry, materials, and illumination from scratch from a set of RGB input images.</li>
+  <li><strong>Specular BRDFs and environmental illumination are represented using mixtures of spherical Gaussians. → This helps solving rendering equation (light transport), the crucial part of physically-based rendering</strong></li>
+  <li>Geometry is represented as a SDF parametrized as a MLP.</li>
+  <li>Works well on scenes with challenging non-Lambertian reflectance under natural, static illumination.</li>
+  <li>Not only synthesizing novel viewpoints, <strong>PhySG can also perform physically-intuitive appearance editing by modifying material or lighting (= relighting).</strong></li>
+</ul>
+
+<hr />
+
+<h1 id="tldr">TL;DR</h1>
+
+<p><img class="img-fluid" src="/assets/post-images/PhySG/PhySG_overview.png" />
+<span class="caption text-muted">Figure 1. <b>PhySG overview</b>. PhySG jointly predicts geometry (represented as SDF parametrized as neural network), BRDF and Envmap (both represented as spherical Gaussian) and enables physically-intuitve appearance editing.</span></p>
+
+<p>This paper proposes <strong>PhySG</strong>, an end-to-end physically-based differentiable rendering pipeline to <strong>jointly estimate lighting, material, geometry and surface normals</strong> from posed multi-view images of specular objects.</p>
+
+<p>PhySG represents scene components as:</p>
+
+<ul>
+  <li><strong>Signed distance functions</strong> (SDF) for shapes (geometry)</li>
+  <li><strong>Spherical Gaussians</strong> as approximations of lighting and specular BRDFs → Efficient evaluation of light transport</li>
+</ul>
+
+<h1 id="background">Background</h1>
+
+<h2 id="neural-rendering">Neural rendering</h2>
+
+<p>There are multiple approaches for parametrizing scene representations as neural networks. For example, NeRF represents scenes as volumetric opacity fields, other methods such as DVR and IDR regard scenes as surfaces. One common idea they share is that, scenes are represented by a single MLP that takes a 3D point (and possibly view direction) and outputs a color. <strong>This means that all these methods treats objects (more specifically the surface points of them) as light sources</strong>, emitting radiance to the entire space. <strong>→ Physics-based relighting and material editing…? Nope.</strong></p>
+
+<p>Other approaches learn an <em>appearance space</em> from Internet photos of landmarks captured under diverse lighting, but these are not physically-based and hard to apply new lighting conditions.</p>
+
+<p>What makes PhySG stand out among these competitors is that it <strong>models appearance via the physical rendering equation</strong>. This approach can solve inverse rendering problems involving specular or glossy objects under static lighting, and allow us to modify lighting and materials in physically-making-sense manner.</p>
+
+<h2 id="material-and-environment-estimation">Material and environment estimation</h2>
+
+<h3 id="material-estimation">Material estimation</h3>
+
+<p>Traditional approach for estimating material properties is to capture scenes under varying illumination. Materials are exposed to various illumination conditions - varying relative position between light source and the material, different kind of light sources, etc - and observed to capture their behavior under different situations. <strong>→ SV-BRDFs</strong></p>
+
+<h3 id="environment-estimation">Environment estimation</h3>
+
+<p>To infer the environment from multi-view images, what prior works did are:</p>
+
+<ul>
+  <li>Factorize scene appearance into diffuse image and surface reflectance map given high-quality geometry from RGBD sensors <strong>→ Entangles the material and lighting! Not relightable!</strong></li>
+  <li>Model lighting as surface emissions, and use Monte Carlo differentiable renderer to jointly estimate material properties and surface emissions from multi-view images <em>conditioned on</em> scanned geometry and object segmentation masks.</li>
+  <li>Predict illumination, materials and shape from a single image via learning-based priors.</li>
+  <li>Estimating BRDF and lighting via deconvolution given known geometry.</li>
+</ul>
+
+<p>In contrast, <strong>PhySG aim to jointly estimate the material and environment, together with geometry and surface normals, only from multi-view 2D images captured under unknown static natural illumination</strong>.</p>
+
+<h2 id="joint-shape-and-appearance-refinement">Joint shape and appearance refinement</h2>
+
+<p>Also, there are many prior works associated with this task:</p>
+
+<ul>
+  <li><strong>Given the initial geometry and appearance cpatured by RGBD sensors</strong>, jointly refine geometry and appearance by assuming Lambertian BRDF and incorporating shading cues. In this approach, a lighting model is pre-computed based on spherical harmonics, then remains unchanged while optimizing the shape and diffuse albedo. As a geometric representation, voxelized SDFs are adopted. (Maier et al., Zollhofer et al.)</li>
+  <li>On the other hand, <strong>another approach assumes known illumination</strong> and exploits reflectance cues to refine geometry computed via visual hulls.</li>
+</ul>
+
+<p>Compared to these works, <strong>PhySG does not require scanned geometry or a known environment map (lighting)</strong>. The framework predicts material and parameters involving in lighting, as well as geometry and surface normal simultaneously, end-to-end.</p>
+
+<h2 id="the-rendering-equation">The rendering equation</h2>
+
+<p>The rendering equation proposed by Kajiya et al. is based on the physical law of energy conservation.</p>
+
+<p>Let’s say there is a surface point $\textbf{x}$ with surface normal $\textbf{n}$.</p>
+
+<p>Also, suppose $L_{i} (\boldsymbol{\omega}_{i}; \textbf{x})$ is the incident light intensity at location $\textbf{x}$ along the direction $\boldsymbol{\omega}_{i}$.</p>
+
+<p>And bidirectional reflectance distribution function (BRDF) $ f_{r} (\boldsymbol{\omega}_{o}, \boldsymbol{\omega}_{i}; \textbf{x}) $ is the reflectance coefficient of the material at location $\textbf{x}$ for incident light direction $ \boldsymbol{\omega}_{i} $ and viewing direction $ \boldsymbol{\omega}_{o} $.</p>
+
+<p>Then the observed light intensity $ L_{o} (\boldsymbol{\omega}_{o}; \textbf{x}) $ is an integral over the hemisphere $ \Omega = { \boldsymbol{\omega}_{i} : \boldsymbol{\omega}_{i} \cdot \textbf{n} &gt; 0} $:</p>
+
+<p>$L_{o} (\boldsymbol{\omega}_{o}; \textbf{x}) = \int_{\Omega} L_{i} (\boldsymbol{\omega}<em>{i}) f</em>{r} (\boldsymbol{\omega}<em>{o}, \boldsymbol{\omega}</em>{i}; \textbf{x}) (\boldsymbol{\omega}<em>{i} \cdot \textbf{n})d \boldsymbol{\omega}</em>{i} $</p>
+
+<p>One remark here is that the BRDF $$ f_{r} (\boldsymbol{\omega}<em>{o}, \boldsymbol{\omega}</em>{i}; \textbf{x}) $$ is a function of viewing direction $$ \boldsymbol{\omega}_{o} $$ and models view-dependent effects such as specularity. That is, an appearance of a material can differ depending on the viewpoint where it is seen.</p>
+
+<h1 id="method">Method</h1>
+
+<p><img class="img-fluid" src="/assets/post-images/PhySG/PhySG_overview.png" />
+<span class="caption text-muted">Figure 2. <b>Overview of PhySG inverse rendering pipeline</b>.</span></p>
+
+<p>PhySG pipeline has three major components:</p>
+
+<ol>
+  <li><strong>Geometry modeling</strong></li>
+  <li><strong>Appearance modeling</strong></li>
+  <li><strong>Forward rendering</strong></li>
+</ol>
+
+<p>All components are designed to be differentiable, so the whole pipeline, formed by jointly connecting these three, is fully differentiable thus can be optimized end-to-end.</p>
+
+<h2 id="geometry-modeling">Geometry modeling</h2>
+
+<p>Inspired by recent success, signed distance functions (SDFs) are used for the geometric representation of PhySG.</p>
+
+<p>In fact, SDFs have really nice properties that makes it suitable for neural scene representation.</p>
+
+<ol>
+  <li><strong>Supports ray tracing via sphere tracing</strong></li>
+  <li><strong>Differentiable</strong></li>
+  <li>Automatically satisfies the constraint between shape and surface normal → <strong>normal can be computed by calculating the gradient of SDF</strong></li>
+</ol>
+
+<p>As in many other research papers, SDFs are represented as MLPs (rather than voxel grids) for memory efficiency and continuous, infinite resolution.</p>
+
+<p>More rigorously, let $S(\textbf{x}; \Theta)$ be our SDF, where $\textbf{x}$ is a 3D point and $\Theta$ are the MLP weights. The MLP used for parametrizing SDF in <strong>PhySG consists of 8 nonlinear layers of width 512, with a skip connection at $4^{th}$ layer</strong>.</p>
+
+<p>Similar to NeRF, in order to express high-frequency geometric detail, <strong>positional encoding with 6 frequency components</strong> is used to encode the location of a 3D point.</p>
+
+<p>While occupancy fields can serve the same purpose, but they are typically much slower during ray tracing, because it requires root-finding to locate the surface. More concretely, it requires over 100 MLP evaluations per cast ray for occupancy fields, whereas <strong>SDFs only need less than 10 MLP evaluations per ray with sphere tracing method</strong>.</p>
+
+<p>To render the pixel color for a camera ray, the intersection where the casted ray meets the SDF must be determined. Then <em>“how can we efficiently find such intersection with SDF?”</em>:</p>
+
+<ol>
+  <li>Start from the ray’s intersection with the object bounding box</li>
+  <li>March along the ray via sphere tracing (step size is the signed distance at the current location). Repeat this until reaching the surface.</li>
+  <li>After the surface point $\textbf{x}$ is found, then the surface normal can be found by evaluating $\textbf{n} = \nabla_{\textbf{x}}S$.</li>
+</ol>
+
+<p>The obtained coordinate of surface point $\textbf{x}$ and surface normal $\textbf{n}$ are then can be used by appearance component of PhySG to render the pixel’s color. Therefore, <strong>to optimize the geometry, gradient must flow through both $\textbf{x}$ and $\textbf{n}$ to the parameters of SDF $\Theta$</strong>. And both of them can be done with ease (either by auto-differentiation library, or implicit differentiation).</p>
+
+<p>However, the sphere tracing algorithm used to find such points and normals need not be differentiable, thus memory efficient.</p>
+
+<h2 id="appearance-modeling">Appearance modeling</h2>
+
+<p>To model a single-material specular object in the scene with the idea of the rendering equation, two optimizable components are needed in PhySG pipeline:</p>
+
+<ol>
+  <li><strong>An environment map</strong> (illumination)</li>
+  <li><strong>BRDF</strong> consisting of spatially varying diffuse albedo and a shared monochrome isotropic specular component</li>
+</ol>
+
+<p>Note that this method <strong><em>DO NOT</em></strong> model self-occlusion or indirect illumination, which can be achieved by clever, but costly techniques in classic rasterization pipeline or - yet the most accurate -  ray tracing.</p>
+
+<p>One of the factors that makes physically-based rendering expensive is the fact that <strong>the hemispherical integral in the rendering equation does not have a closed-form expression</strong>. Thus, numerical evaluation is usually done with computationally expensive Monte-Carlo methods.</p>
+
+<h3 id="spherical-gaussian-sg">Spherical Gaussian (SG)</h3>
+
+<p>In PhySG, for modeling glossy material and distant direct illumination, spherical Gaussians (SGs) can be adopted to efficiently approximate the rendering equation in closed form.</p>
+
+<p>An <strong>$n$-dimensional spherical Gaussian (SG) is a spherical function</strong> that takes the form:</p>
+
+<p>$$G(\boldsymbol{\nu}; \boldsymbol{\xi}, \lambda, \boldsymbol{\mu}) = \boldsymbol{\mu} e^{\lambda ( \boldsymbol{\nu} \cdot \boldsymbol{\xi} -1)}$$</p>
+
+<p>where $\boldsymbol{\nu} \in \mathbb{S}^{2}$ is the function input, $\boldsymbol{\xi} \in \mathbb{S}^{2}$ is the lobe axis, $$ \lambda \in \mathbb{R}<em>{+} $$ is the lobe sharpness, and $\boldsymbol{\mu} \in \mathbb{R}</em>{+}^{n}$ is the lobe amplitude.</p>
+
+<h3 id="environment-map-representation">Environment map representation</h3>
+
+<p>Then <strong>the environment map</strong> $L_{i} (\boldsymbol{\omega}_{i}; \textbf{x}) = L(\boldsymbol{\omega}_i)$ (incident ray direction $\boldsymbol{\omega}_i$ is dropped due to the distant illumination assumption) is represented with a mixture of $M = 128$ SGs:</p>
+
+<p>$$L_{i} (\boldsymbol{w}<em>i) = \sum</em>{k=1}^{M} G (\boldsymbol{\omega}_i; \boldsymbol{\xi}_k, \lambda_k, \boldsymbol{\mu}_k)$$</p>
+
+<h3 id="brdfs">BRDFs</h3>
+
+<p>At the same time, <strong>the spatially-varying diffuse albedo</strong> is represented as a MLP mapping a surface point $\textbf{x}$ to a color vector $\textbf{a}$, i.e., $\textbf{a} (\textbf{x}; \boldsymbol{\Phi})$. Just like geometric component, positional encoding is also applied to fit high-frequency texture details. This MLP consists of 4 nonlinear layers of width 512, and encode location $\textbf{x}$ with 10 frequencies.</p>
+
+<p>For the shared specular component (I guess that the entire surface of the object has the single specular property), simplified Disney BRDF model is used:</p>
+
+<p>$$f_{s}(\boldsymbol{\omega}_o, \boldsymbol{\omega}_i) = \mathcal{M} (\boldsymbol{\omega}_o, \boldsymbol{\omega}_i) \mathcal{D} (\textbf{h})$$</p>
+
+<p>where $$ \textbf{h} = ( \boldsymbol{\omega}<em>o + \boldsymbol{\omega}_i) / \vert\vert \boldsymbol{\omega}_o + \boldsymbol{\omega}_i \vert\vert</em>{2} $$, $\mathcal{M}$ accounts for the Fresnel and shadowing effects, and $\mathcal{D}$ is the normalized distribution function.</p>
+
+<p>The specular BRDF in simplified Disney BRDF is constructed as the following:</p>
+
+\[\mathcal{M} (\boldsymbol{\omega}_{o}, \boldsymbol{\omega}_{i}) = \frac{\mathcal{F}(\boldsymbol{\omega}_{o}, \boldsymbol{\omega}_{i}) \mathcal{G}(\boldsymbol{\omega}_{o}, \boldsymbol{\omega}_{i})}{4 (\textbf{n} \cdot \boldsymbol{\omega}_{o})(\textbf{n} \cdot \boldsymbol{\omega}_{i})}, \,\, \text{where} \\
+\mathcal{F}(\boldsymbol{\omega}_{o}, \boldsymbol{\omega}_{i}) = \textbf{s} + (1 - \textbf{s}) \cdot 2 ^{- (5.55473 \boldsymbol{\omega}_{o} \cdot \textbf{h} + 6.8316)(\boldsymbol{\omega}_{o} \cdot \textbf{h})}, \\
+\mathcal{G} (\boldsymbol{\omega}_{o}, \boldsymbol{\omega}_{i}) = \frac{\boldsymbol{\omega}_{o} \cdot \textbf{n}}{\boldsymbol{\omega}_{o} \cdot \textbf{n} (1-k) + k} \cdot \frac{\boldsymbol{\omega}_{i} \cdot \textbf{n}}{\boldsymbol{\omega}_{i} \cdot \textbf{n} (1-k) + k}\]
+
+<p>where $\textbf{s} \in [0, 1]^{3}$ is the specular albedo, $R \in \mathcal{R}_{+}$ is roughness, and $k = (R+1)^{2} / 8$. And the functions $\mathcal{F}$, $\mathcal{G}$ are Fresnel and shadowing terms, respectively.</p>
+
+<p>On the other hand, $\mathcal{D}$ is represented with a single SG:</p>
+
+<p>$$\mathcal{D} (\textbf{h}) = G(\textbf{h}; \boldsymbol{\xi}, \lambda, \boldsymbol{\mu})$$</p>
+
+<p>since the paper assumed that the specular BRDF is isotropic, the lobe axis $\boldsymbol{\xi}$ must be aligned with surface normal, i.e. $\boldsymbol{\xi} = \textbf{n}$. Also, the monochrome assumption makes the three numbers in $\boldsymbol{\mu}$ identical.</p>
+
+<p>When computing the rendering equation at a point $\textbf{x}$ with surface normal $\textbf{n}$ viewed along direction $\boldsymbol{\omega_{o}}$, $\mathcal{D}$ must be spherically warped, while $\mathcal{M}$ must be approximated by a constant at this specific location $\textbf{x}$:</p>
+
+\[\mathcal{D}_{\textbf{x}} (\textbf{h}) = G (\textbf{h}; \textbf{n}, \frac{\lambda}{4 \textbf{h} \cdot \boldsymbol{\omega}_{o}}, \boldsymbol{\mu}), \\
+\mathcal{M}_{\textbf{x}} (\boldsymbol{\omega}_{o}, \boldsymbol{\omega}_{i}) \approx \mathcal{M} (\boldsymbol{\omega}_{o}, 2 (\boldsymbol{\omega}_{o} \cdot \textbf{n})\textbf{n} - \boldsymbol{\omega}_{o})\]
+
+<p>Note that $$ \boldsymbol{\omega}<em>{i} $$ is approximated to $$ 2 (\boldsymbol{\omega}</em>{o} \cdot \textbf{n})\textbf{n} - \boldsymbol{\omega}_{o} $$, under the perfect mirror reflection assumption, removing the dependence of $\textbf{x}$.</p>
+
+<p>Therefore, for the point $\textbf{x}$, by combining what we’ve discussed so far:</p>
+
+<p>$$f_{s} (\boldsymbol{\omega}<em>{o}, \boldsymbol{\omega}</em>{i}; \textbf{x}) = G (\textbf{h}; \textbf{n}, \frac{\lambda}{4 \textbf{h} \cdot \boldsymbol{\omega}<em>{o}}, \mathcal{M}</em>{\textbf{x}} \boldsymbol{\mu})$$</p>
+
+<p>Now, both $$ L_{i} (\boldsymbol{\omega}<em>{i}) $$ and $$ f</em>{r} (\boldsymbol{\omega}<em>{o}, \boldsymbol{\omega}</em>{i}; \textbf{x}) = \frac{\textbf{a}}{\pi} + f_{s} (\boldsymbol{\omega}<em>{o}, \boldsymbol{\omega}</em>{i}; \textbf{x}) $$ in the rendering equation are approximated with SGs. Then the remaining term $$ (\boldsymbol{\omega}_i \cdot \textbf{n}) $$ can also be approximated with a SG of form:</p>
+
+<p>$$\boldsymbol{\omega}_{i} \cdot \textbf{n} \approx G (\boldsymbol{\omega}_i ; 0.0315, \textbf{n}, 32.7080) - 31.7003$$</p>
+
+<p>Until now, we have succesfully replaced all the terms inside the integral of the rendering equation, so what’s remaining is to perform integration of the multiplication of these SGs in closed-form which gives us the observed color $L_{o} (\boldsymbol{\omega}_{o}; \textbf{x})$.</p>
+
+<p>Finally, one would identify the optimizable parameters in each of SGs,</p>
+
+<ul>
+  <li><strong>Environment map</strong>: $$ { \boldsymbol{\xi}<em>{k}, \lambda</em>{k}, \boldsymbol{\mu}<em>{k} }</em>{k=1}^{M} $$</li>
+  <li><strong>Specular BRDF</strong>: $$ { \lambda, \boldsymbol{\mu}} $$</li>
+  <li><strong>Spatially-varying diffuse albedo</strong>: $$ \boldsymbol{\Phi} $$</li>
+</ul>
+
+<p>respectively.</p>
+
+<h2 id="forward-rendering">Forward rendering</h2>
+
+<p>We now have representations for geometric and appearance components. Then the process of <strong>forward rendering of a ray’s color</strong> is the following:</p>
+
+<ol>
+  <li>Use sphere tracing to find the intersection point $\textbf{x}$ between the ray $\textbf{r} = \textbf{o} + t \textbf{d}$ and the surface $S(\textbf{x}; \Theta) = 0$.</li>
+  <li>Compute the surface normal $\textbf{n} = \nabla_{\textbf{x}} S$ at $\textbf{x}$ via automatic differentiation.</li>
+  <li>Compute the diffuse albedo $\textbf{a} (\textbf{x}; \boldsymbol{\Phi})$ at $\textbf{x}$.</li>
+  <li>Use the surface normal $\textbf{n}$, environment map $$ L_{i} (\boldsymbol{w}<em>i) $$, diffuse albedo $\textbf{a}$, specular BRDF $$ f</em>{s} (\boldsymbol{\omega}<em>{o}, \boldsymbol{\omega}</em>{i}; \textbf{x}) $$, and viewing direction $\textbf{d}$ to compute the color for ray $\textbf{r}$ by evaluating the rendering equation in closed form with SG approximation.</li>
+</ol>
+
+<p>Surprisingly, this entire procedure is fully differentiable with respect to all parameters involving in the rendering since:</p>
+
+<ul>
+  <li>The rendered color $$ L_{o} (\boldsymbol{\omega}<em>{o}; \textbf{x}) $$ is differentiable with respect to the variables $\textbf{n}$, $$ { \boldsymbol{\xi}</em>{k}, \lambda_{k}, \boldsymbol{\mu}<em>{k} }</em>{k=1}^{M} $$, $\textbf{a}$, ${ \lambda, \boldsymbol{\mu}}$ in the last step described above. → The SG renderer is simply the closed-form integration of spherical Gaussians.</li>
+  <li>The spatially-varying diffuse albedo $\textbf{a} = \textbf{a}(\textbf{x}; \boldsymbol{\Phi})$ is nothing but an MLP, regarded as a polynomial function mathematically, which is differentiable. Thus, the rendered color is also differentiable with respect to $\boldsymbol{\Phi}$.</li>
+  <li>It’s shown that there exist gradients of both $\textbf{x}$ and $\textbf{n}$ with respect to the SDF parameters $\Theta$. Therefore, by the chain rule, the rendered color is also differentiable with respect to $\Theta$.</li>
+</ul>
+
+<h2 id="loss-functions">Loss functions</h2>
+
+<p>To optimize the parameters of the model, a set of images and their corresponding viewpoints are used. PhySG render images from these viewpoints, and <strong>each image is compared with ground truth image via $\ell_1$ image reconstruction loss</strong>.</p>
+
+<p>Also, the authors enforced non-negative minimum SDF values along non-object pixel rays indicated by object segmentation masks. And regularized the SDF’s gradient to have unit norm.</p>
+
+<p>More precisely, at each training iteration, what happens is the following:</p>
+
+<ol>
+  <li>Randomly sample a batch of pixels consisting of: object pixels $$ \textbf{r}<em>{i}^{obj} $$ with ground truth color $$ { \textbf{c}</em>{i}^{\text{gt}} }<em>{i=1}^{N</em>{\text{obj}}} $$, and non-object pixels $$ { \textbf{r}<em>{i}^{\text{nobj}}}</em>{i=1}^{N_{\text{nobj}}} $$.</li>
+  <li>Render colors $$ \textbf{c}<em>{i}^{\text{obj}} $$ for $$ \textbf{r}</em>{i}^{obj} $$, while finding the minimal SDF value $S_{i}^{\text{nobj}}$ along camera rays $\textbf{r}_{i}^{\text{nobj}}$ by taking the minimal SDF value among 100 points uniformly lying on the ray segment inside object bounding box.</li>
+  <li>Randomly sample $$ { \textbf{x}<em>{i} }</em>{i=1}^{N_x} $$ inside the object bounding box.</li>
+</ol>
+
+<p>Then the full loss is computed as:</p>
+
+\[\ell = \frac{1}{N_{\text{obj}}} \sum_{i=1}^{N_{\text{obj}}} \vert\vert \textbf{c}_{i}^{\text{obj}} - \textbf{c}_{i}^{\text{gt}} \vert\vert_1 \\
++ \beta_{1} \frac{1}{N_{\text{nobj}}} \sum_{i=1}^{N_{\text{nobj}}} \frac{\ln (1 + e^{-\alpha S_{i}^{\text{nobj}}})}{\alpha} \\
++ \beta_{2} \frac{1}{N_x} \sum_{i=1}^{N_{x}} \vert\vert \vert\vert \nabla_{\textbf{x}_{i}} S \vert\vert_{2} - 1 \vert\vert_{2}^{2}\]
+
+<p>where $\ln (1 + e^{-\alpha S_{i}^{\text{nobj}}}) / \alpha$, $\alpha &gt; 0$ is a <strong>smooth approximation of a horizontally flipped ReLU</strong> $$\text{max} { -S_{i}^{\text{nobj}}, 0 }$$, and $\beta_{1}$ and $\beta_{2}$ are weights balancing different loss terms.</p>
+
+<p>The authors set $\beta_{1} = 100$, $\beta_{2} = 0.1$, $N_{\text{obj}} + N_{\text{nobj}} = 2048$, $N_x = 1024$ in their experiments. $\alpha$ grows from 50 to 1600 during training.</p>
+
+<p>Furthermore, instead of sampling $N_{\text{obj}} + N_{\text{nobj}}$ independent pixels, the authors sampled $\frac{N_{\text{obj}} + N_{\text{nobj}}}{4}$ patches of size $2 \times 2$, and added the <strong>additional loss term to penalize the variance of surface normals inside patches consisting only of object pixels</strong> (i.e. calculate this only for such patches). This is natural since a small (infinitesimal) region of object surface should have continuous variation of normals. The weight for this smoothness loss is set to 10.</p>
+
+<h2 id="initialization">Initialization</h2>
+
+<p>The SDF weights $\Theta$ are initialized using the method from the paper <em>Implicit geometric regularization for learning shapes, Gropp et al.</em> such that the initial shape is roughly a sphere. <strong>→ Note that PhySG <em>refines</em> the geometry starting from a sphere, it may not be applicable to other geometries having completely different topologies</strong>.</p>
+
+<p>The diffuse albedo $\textbf{a} (\textbf{x}; \boldsymbol{\Phi})$ is initialized such that predicted albedo is around 0.5 at all locations inside the object bounding box.</p>
+
+<p>For the specular BRDF, the initial lobe sharpness $\lambda$ is randomly drawn from $[95, 125]$, while the initial specular albedo $\boldsymbol{\mu}$ is randomly drawn from [0.18, 0.26] (note that all elements of $\boldsymbol{\mu}$ share the same value due to monochromatic assumption).</p>
+
+<p>In the case of the environment map, the lobes are initialized to distribute uniformly on the unit sphere using a spherical Fibonacci lattice, with monochrome colors. And the intensity of lobes’ (remember that the environment map is expressed as the sum of $M$ individual SGs) are scaled randomly so the initial rendered pixel intensity output is around 0.5.</p>
+
+<p>Additionally, it’s possible that different captures (even taken from a single scene!) might have significant gaps in exposure, all input images of an object is scaled with the same constant such that the median intensity of all scaled images is 0.5. → Empricially found that <strong>the diffuse albedo MLP fails to learn albedo properly when trained with either too bright or too dark environment map</strong>.</p>
+
+<h1 id="experiments">Experiments</h1>
+
+<p><strong><em>For detailed experiment setups, please refer to the original paper. This post describes only the basic experimental settings and some quantitative results.</em></strong></p>
+
+<p>PhySG pipeline is validated on both synthetic and real-world datasets.</p>
+
+<p>Synthetic dataset is created by rendering 200 images per object using colored environmental lighting using the Mitsuba renderer, and 100 images among them were used for training while the others were used as test data.</p>
+
+<p>For real-world scenes, the following datasets were used:</p>
+
+<ul>
+  <li><strong>SLF dataset</strong></li>
+  <li><strong>DeepVoxels</strong></li>
+  <li><strong>Bag of Chips</strong></li>
+  <li><strong>DTU dataset</strong></li>
+</ul>
+
+<h2 id="comparison-with-baselines">Comparison with baselines</h2>
+
+<p><img class="img-fluid" src="/assets/post-images/PhySG/PhySG_comparison_previous_methods.png" />
+<span class="caption text-muted">Figure 3. <b>Comparison with previous methods on both synthetic and real world data</b>.</span></p>
+
+<p>Along with PhySG, other neural rendering techniques such as NeRF, IDR, DVR are chosen as baselines, since they are the ones most related to this work. Although these methods can be trained end-to-end from multi-view 2D images, they are different from PhySG in a way that they represent scenes. We can say that all of them (including PhySG itself) model appearance as an MLP-represented surface (maybe volume) light field but these are particularly different in details:</p>
+
+<ul>
+  <li>NeRF: Maps location $\textbf{x}$ and viewing direction $\sigma$ to a color</li>
+  <li>IDR: Maps $\textbf{x}$, $\textbf{d}$ and surface normal $\textbf{n}$ to a color</li>
+  <li>DVR: Takes ony $\textbf{x}$</li>
+</ul>
+
+<p>As one can see from the figure above, <strong>NeRF reconstructs the object surface poorly in view extrapolation because its volumetric representation does not concentrate colors near the surfaces</strong>. While both IDR and DVR take surface-based approach, <strong>DVR also fails to reproduce the surface since it lacks the view-dependent information</strong>, which is a key feature involving in glossy, specular effects. While <strong>IDR seems better than these two and works well, it also cannot synthesize specular highlights</strong> since it doesn’t have any physical model under the hood.</p>
+
+<p>Compared to these methods, PhySG successfully synthesizes novel views with accurate specular effects. Furthermore, note that this method also enables us to edit the appearance whereas other three methods cannot.</p>
+
+<p><img class="img-fluid" src="/assets/post-images/PhySG/PhySG_editing_material.png" />
+<span class="caption text-muted">Figure 4. <b>Editing materials and lighting of the real-world captures</b>. For several input images, each figures in the same row from left to right: a real photo from the test set, image synthesized by PhySG, estimated diffuse (only) image, editing result by painting diffuse albedo, relighting results under two novel environmental illuminations, and estimated surface normal.</span></p>
+
+<p>Observe that scenes can be altered by modifying the scene representation obtained by PhySG through training. And they can be manipulated in physically-intuitive manner, yielding plausible and photorealistic images.</p>
+
+<h2 id="robustness-to-material-roughness">Robustness to material roughness</h2>
+
+<p><img class="img-fluid" src="/assets/post-images/PhySG/PhySG_editing_material.png" />
+<span class="caption text-muted">Figure 5. <b>Ground truth and reconstructed environment maps for the synthetic Kitty data</b>.</span></p>
+
+<p><strong>One possible drawback of this method is that it relies on specular highlights to estimate the lighting condition and material properties</strong>. Thus, one might come up with a question such as <em>“What if the material of our interest is purely Lambertian?” (i.e. no specular reflection to guide PhySG)</em> To answer this question, the authors also empricially tested the capability of PhySG using the scenes consist of objects having rough surface (i.e. less specular, but more diffuse). And it turned out that <strong>PhySG can reconstruct a reasonable-looking environment map even from very weak specular highlights</strong>.</p>
+
+<p><img class="img-fluid" src="/assets/post-images/PhySG/PhySG_results_synthetic.png" />
+<span class="caption text-muted">Figure 6. <b>Results of PhySG pipeline on synthetic data</b>.</span></p>
+
+<h1 id="conclusion">Conclusion</h1>
+
+<h2 id="pros">Pros</h2>
+
+<ul>
+  <li>Proposed PhySG, an end-to-end inverse rendering pipeline that uses physics-based differentiable rendering.</li>
+  <li>SDF for geometry and spherical Gaussian (SG) for appearance.</li>
+  <li>PhySG can jointly recover environment maps, material BRDFs, and geometry from multi-view images captured under static illumination.</li>
+  <li>This disentanglement, physics-based approach enables users to edit materials and relight the scenes.</li>
+</ul>
+
+<h2 id="cons">Cons</h2>
+
+<ul>
+  <li><strong>Indirect illumination is not modelled</strong> by SG approximation of rendering equation → Cannot accurately model scenes with multiple objects, where indirect lighting matters</li>
+  <li>Assumption on constant and monochrome specular BRDFs → due to the scale ambiguity between illumination and reflectance</li>
+  <li>No support for anisotropic materials → Possibly handled by another SG which approximates terms in the rendering equation, especially the ones involving in anisotropic light bounces.</li>
+</ul>
+:ET

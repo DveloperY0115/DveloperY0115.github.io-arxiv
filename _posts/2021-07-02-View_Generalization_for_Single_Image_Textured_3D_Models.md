@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Summary of 'View Generalization for Single Image Textured 3D Models'"
-use_math: true
+# use_math: true
 background: '/assets/post-images/ViewGeneralizationSingleImage/fig2.png'
 ---
 
@@ -34,7 +34,7 @@ The network infers both **underlying geometry (mesh) and texture from a single 2
 
 An encoder-decoder architecture encodes images into 3D geometry and decodes textures, and these are then fed into a differentiable renderer giving reconstructed input images with image-view camera parameters. For differentiable renderer in this pipeline, DIB-R is used.
 
-To estimate 3D geometry with high accuracy, it's necessary to **control the model complexity and mesh deformation**. This is very important since it's often turns out to be difficult to find balance between flexibility for various images and rigidity for realistic rendering of novel views. 
+To estimate 3D geometry with high accuracy, it's necessary to **control the model complexity and mesh deformation**. This is very important since it's often turns out to be difficult to find balance between flexibility for various images and rigidity for realistic rendering of novel views.
 
 For example, a model that is too flexible might work for many kinds of images but each with unsatisfactory quality. On the other hand, a model which is too rigid may reconstruct input images with desirable photorealism, while completely failing to generate results conditioned on unknown viewpoints.
 
@@ -54,7 +54,7 @@ For large deformation models (non-rigid shapes such as birds), the spatial resol
 
 On the other hand, for small deformation models (rigid shapes such as cars), the convolutional network predicts low resolution deformation map ($2 \times 2$) or ($4 \times 4$) to restrict the number of vertices (mapped onto the UV map) to be deformed, so that the template mesh does not undergo too much modification (i.e. only small number of vertices in the original model are deformed).
 
-This controllability, reffered as degree of deformation (DOD), is one of the key aspect of this work, and used throughout this work. Especially, in the literature, $\text{DOD} = 4$ means that the 2D deformation has $2 \times 2$ spatial resolution.
+This controllability, refered as degree of deformation (DOD), is one of the key aspect of this work, and used throughout this work. Especially, in the literature, $\text{DOD} = 4$ means that the 2D deformation has $2 \times 2$ spatial resolution.
 
 Since **the deformation is learned for 2D UV map, not the template mesh**, the number of vertices that associated deformations are sampled and then applied can be adjusted freely without extra computational cost.
 
@@ -82,7 +82,7 @@ implies that it's possible to add two different meshes. Then, the vertices of te
 
 ---
 
-It's shown in the experiments that using only a few additional templates improves textured 3D inference by large margin with only a single 2D image. 
+It's shown in the experiments that using only a few additional templates improves textured 3D inference by large margin with only a single 2D image.
 
 And the preprocessing for templates meshes were done as the following:
 
@@ -99,28 +99,28 @@ And the preprocessing for templates meshes were done as the following:
 
 The bases losses are same as DIB-R, which is the work about the differentiable renderer used in this work.
 
-For reconstruction, $$\mathcal{L}_1$$ image reconstruction loss between input image $I$ and the rendered image $I_{r}$ and perceptual loss from AlexNet $\Phi$ at different $j$-th feature layers are used. Concretely,
+For reconstruction, $\mathcal{L}\_1$ image reconstruction loss between input image $I$ and the rendered image $I_{r}$ and perceptual loss from AlexNet $\Phi$ at different $j$-th feature layers are used. Concretely,
 
-$$\mathcal{L}_{\text{recon}} = \vert\vert I - I_r \vert\vert_{1}, \\
-\mathcal{L}_{\text{percp}} = \vert\vert \Phi_{j}(I) - \Phi_{j}(I_{r}) \vert\vert_{2}$$
+$$ \begin{gather} \mathcal{L}_{\text{recon}} = \vert\vert I - I_r \vert\vert_{1}, \\
+\mathcal{L}_{\text{percp}} = \vert\vert \Phi_{j}(I) - \Phi_{j}(I_{r}) \vert\vert_{2} \end{gather} $$
 
 For shapes, an IoU between the silhouette rendered $S_{r}$ and the silhouette $S$ of the input image is used:
 
-$$\mathcal{L}_{\text{sil}} = 1 - \frac{\vert\vert S \odot S_{r} \vert\vert_{1}}{\vert\vert S + S_{r} - S \odot S_{r} \vert\vert}$$
+$$ \begin{gather} \mathcal{L}\_{\text{sil}} = 1 - \frac{\vert\vert S \odot S_{r} \vert\vert_{1}}{\vert\vert S + S_{r} - S \odot S_{r} \vert\vert} \end{gather} $$
 
-Along with the silhouette loss, the predicted mesh is regularized with a smoothness loss and Laplacian loss ($\mathcal{L}_{\text{lap}}$). The purpose of taking these losses into account is to make normals of neighboring mesh triangles similar. 
+Along with the silhouette loss, the predicted mesh is regularized with a smoothness loss and Laplacian loss ($\mathcal{L}_{\text{lap}}$). The purpose of taking these losses into account is to make normals of neighboring mesh triangles similar.
 
-The camera pose is also predicted. And it's used together with the ground truth camera pose to compute a simple $$\mathcal{L}_2$$ regression loss ($\mathcal{L}_{\text{cam}}$) (see the overall architecture). 
+The camera pose is also predicted. And it's used together with the ground truth camera pose to compute a simple $\mathcal{L}\_2$ regression loss ($\mathcal{L}_{\text{cam}}$) (see the overall architecture).
 
-Keypoints are predictd from the inferred mesh as well. As in the camera pose loss, it's compared with the ground truth and gives us $$\mathcal{L}_{2}$$ regression loss ($\mathcal{L}_{\text{KP}}$).
+Keypoints are predictd from the inferred mesh as well. As in the camera pose loss, it's compared with the ground truth and gives us $\mathcal{L}\_{2}$ regression loss ($\mathcal{L}\_{\text{KP}}$).
 
 Finally, the magnitude of deformation is regularized to be small, thus $\mathcal{L}_{\text{deform}}= \vert\vert \Delta V \vert\vert$ is minimized so that it becomes close to zero. Therefore, the baseline loss for this study is:
 
-$$\mathcal{L}_{\text{baseline}} = \lambda_{r} \mathcal{L}_{\text{recon}} + \lambda_{p} \mathcal{L}_{\text{percp}} + \lambda_{s} \mathcal{L}_{\text{sil}} \\ + \lambda_{c} \mathcal{L}_{\text{cam}} + \lambda_{\text{kp}} \mathcal{L}_{\text{KP}} + \lambda_{d} \mathcal{L}_{\text{deform}} + \lambda_{\text{lap}} \mathcal{L}_{\text{lap}}$$
+$$ \begin{gather} \mathcal{L}\_{\text{baseline}} = \lambda_{r} \mathcal{L}\_{\text{recon}} + \lambda_{p} \mathcal{L}\_{\text{percp}} + \lambda_{s} \mathcal{L}\_{\text{sil}} \\ + \lambda_{c} \mathcal{L}\_{\text{cam}} + \lambda_{\text{kp}} \mathcal{L}\_{\text{KP}} + \lambda_{d} \mathcal{L}\_{\text{deform}} + \lambda_{\text{lap}} \mathcal{L}_{\text{lap}} \end{gather} $$
 
 and the values for the coefficients are: $\lambda_{r} = 20$, $\lambda_{p} = 0.5$, $\lambda_{s} = 5.0$, $\lambda_{c} = 1$, $\lambda_{\text{kp}} = 50.0$ , $\lambda_{d} = 2.5$, $\lambda_{\text{lap}} = 5.0$.
 
-Note that there's no novelty in the loss introduced here. This will play the role as a baseline, and the effect of applying loss suggested by the authors will be presented soon.
+Note that there's nothing new in the loss introduced here. This will play the role as a baseline, and the effect of applying loss suggested by the authors will be presented soon.
 
 ## Cycle-Consistency Losses
 
@@ -142,13 +142,11 @@ That being said, we need to fine another way to achieve multi-view consistency w
 
 Let $M$ be a function which outputs 3D meshes given an input image, $T$ be a texture network, and $R$ be a differentiable renderer which outputs an image.
 
-Given an image $X_1$ and its corresponding camera pose $C_1$, the framework first infer the underlying geometry and texture representation, and then renders a new, intermediate image $I_1$ seen from a novel camera view $C_2$. 
+Given an image $X_1$ and its corresponding camera pose $C_1$, the framework first infer the underlying geometry and texture representation, and then renders a new, intermediate image $I_1$ seen from a novel camera view $C_2$.
 
 $$I_1 = R(M(X_1), T(X_1), C_2)$$
 
 and then **using this intermediate image, the framework then infer the geometry and texture representation, just as it did for $X_1$, and render an image that would've been seen from** $C_1$. More precisely,
-
- 
 
 $$X_1^{\prime} = R(M(I_1), T(I_1), C_1)$$
 
@@ -169,17 +167,17 @@ On the other hand, synthesizing accurate texture for an object in an image was t
 
 One important fact to notice is that the network can be easily overfitted due to the problem setting of single view reconstruction. The only information that the naive-neural network can utilize for synthesizing the texutre is the given single image. The artifact of overfitting is inconsistent, awkward, and distorted texture when seen from different viewpoints. Therefore, **the key to solve this issue is to find a way to avoid overfitting the network to a specific image**.
 
-Inspired by the insight gained from human perception - depending on not only the information currently available, but refer to the past experience - one might come up with an idea to share the appearance information over the input images. And hopefully, the network can learn the underlying relation between shape and texture (e.g. inferring the location of headlights given an image showing the back of a car using *other images* depicting the front of various cars). 
+Inspired by the insight gained from human perception - depending on not only the information currently available, but refer to the past experience - one might come up with an idea to share the appearance information over the input images. And hopefully, the network can learn the underlying relation between shape and texture (e.g. inferring the location of headlights given an image showing the back of a car using *other images* depicting the front of various cars).
 
 And this can be mimicked by constrain the network on the novel texture-mesh alignment cycle consistency loss. Suppose that we're given two images $X_1$, $X_2$ each depicting different objects (e.g. cars in figure above), along with their corresponding camera poses $C_1$, $C_2$. Then the framework first makes inference on their 3D meshes and textures. Then, we **swap textures** to reconstruct two intermediate images such that:
 
-$$I_1 = R(M(X_1), T(X_2), C_1), \\
-I_2 = R(M(X_2), T(X_1) , C_2)$$
+$$ \begin{gather} I_1 = R(M(X_1), T(X_2), C_1), \\
+I_2 = R(M(X_2), T(X_1) , C_2) \end{gather} $$
 
 then the next step is to infer textures from these intermediate images and swap textures back onto their original geometries, reconstructing the original images:
 
-$$X_1^{\prime} = R(M(X_1), T(I_2), C_1), \\
-X_2^{\prime} = R(M(X_2), T(I_1), C_2)$$
+$$ \begin{gather} X_1^{\prime} = R(M(X_1), T(I_2), C_1), \\
+X_2^{\prime} = R(M(X_2), T(I_1), C_2) \end{gather} $$
 
 Again, similar to rotation GAN consistency loss, the original image $X_i$ and $X_i^{\prime}$ should match ideally. By regularizing the network using the texture-mesh alignment loss, we can reduce the bias arose by taking only a single image into consideration during inference. Furthermore, another useful aspect of this loss is that the network can learn how the parts of a texture that were originally invisible or occluded should look like from the novel viewpoints. This definitely helps the network to recover accurate & realistic textures.
 

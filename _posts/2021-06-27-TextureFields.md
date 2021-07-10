@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Summary of 'Texture Fields: Learning Texture Representations in Function Space'"
-use_math: true
+# use_math: true
 background: '/assets/post-images/TextureFields/texturefields_method_overview.png'
 ---
 
@@ -75,13 +75,13 @@ To generate shape embedding $\textbf{s}$, **points are sampled uniformly from th
 
 Given shape embedding $\textbf{s}$ and image latent code $\textbf{z}$, the Texture Field predicts a color value $\textbf{c}_i$ for any point $\textbf{p}_i$ on the surface of 3D shape. It sounds like we can color 3D meshes directly, but it's not an easy work since additional UV-mapping is required. Thus, **we shall train our model in 2D image space rather than raw 3D space** for regularity and efficiency.
 
-To this end, **depth maps** $\textbf{D}$ and **corresponding color images** $\textbf{X}$ from **arbitrary viewpoints should be rendered**. In this case, OpenGL is used. → 🤔🤔🤔 **SERIOUSLY?** 🤔🤔🤔
+To this end, **depth maps** $\textbf{D}$ and **corresponding color images** $\textbf{X}$ from **arbitrary viewpoints should be rendered**. In this case, OpenGL is used.
 
 Then the color at pixel $\textbf{u}_i$ and depth $d_i$ is predicted as:
 
-$$\hat{\textbf{c}_i} = t_{\theta}(d_i \textbf{R}\textbf{K}^{-1}\textbf{u}_i + \textbf{t}, \textbf{s}, \textbf{z})$$
+$$\hat{\textbf{c}\_i} = t_{\theta}(d_i \textbf{R}\textbf{K}^{-1}\textbf{u}_i + \textbf{t}, \textbf{s}, \textbf{z})$$
 
-where $i$ denotes the index for pixels with finite depth values $d_i$ and $i \in \{1, ..., N\}$. 
+where $i$ denotes the index for pixels with finite depth values $d_i$ and $i \in \{1, ..., N\}$.
 
 Here, $N$ denotes the number of foreground pixels in the rendered image (i.e. pixels where the object is visible). The camera intrinsic is denoted by $\textbf{K} \in \mathbb{R}^{3 \times 3}$, and extrinsics are denoted by $\textbf{R} \in \mathbb{R}^{3 \times 3}$ (orientation), and $\textbf{t} \in \mathbb{R}^3$ (translation), respectively. And pixel coordinate $\textbf{u}_i$ is represented in homogeneous coordinates.
 
@@ -93,7 +93,7 @@ The predicted color $\hat{\textbf{c}_i}$ is compared to the ground truth pixel c
 
 In this case, the image embedding $\textbf{z}$ is passed to the network. The network $t_{\theta}(\textbf{p}, \textbf{s}, \textbf{z})$ is trained in a supervised setting by minimizing $\ell_1$-loss between the predicted image $\hat{\textbf{X}}$ and the rendered image $\textbf{X}$.
 
-$$\mathcal{L}_{\text{cond}} = \frac{1}{B}\sum_{b=1}^{B}\sum_{i=1}^{N_b} \vert\vert t_{\theta}(\textbf{p}_{b_i}, \textbf{s}_b, \textbf{z}_b) - \textbf{c}_{b_i} \vert\vert_{1}$$
+$$\mathcal{L}\_{\text{cond}} = \frac{1}{B}\sum\_{b=1}^{B}\sum\_{i=1}^{N_b} \vert\vert t_{\theta}(\textbf{p}_{b_i}, \textbf{s}\_b, \textbf{z}_b) - \textbf{c}\_{b_i} \vert\vert\_{1}$$
 
 Here, $B$ stands for batch size. **Each element of the mini batch represents an image with $N_b$ foreground pixels.** Also, shape encoding $\textbf{s}_b$ and conditional image encoding $\textbf{z}_b$ depends on the parameters of the shape & image encoder networks (PointNet for shape, ResNet for image). Using the loss above, **three networks - shape encoder, image encoder, and Texture Field - are trained jointly.**
 
@@ -103,13 +103,13 @@ In the unconditional setting, **the model is given only the 3D shape as its inpu
 
 First, we tackle this problem with *conditional GAN,* where the generator is conditioned on the 3D shape. Then, the generator is represented as a Texture Field $t_{\theta} : \mathbb{R}^3 \times \mathcal{S} \times \mathcal{Z} \to \mathbb{R}^3$ which maps the latent code $\textbf{z}$ for every given 3D location $\textbf{p}_i$ conditioned on the shape embedding $\textbf{s}$ to an RGB image $\hat{\textbf{X}}$:
 
-$$\hat{\textbf{X}} = G_{\theta} (\textbf{z}_b \vert \textbf{D}_b, \textbf{s}_b) = \{ t_{\theta}(\textbf{p}_{b_i}, \textbf{s}_b, \textbf{z}_b) \vert i \in \{1,..., N_b\}\}$$
+$$\hat{\textbf{X}} = G_{\theta} (\textbf{z}\_b \vert \textbf{D}\_b, \textbf{s}\_b) = \\{ t_{\theta}(\textbf{p}_{b_i}, \textbf{s}_b, \textbf{z}_b) \vert i \in \\{ 1,..., N_b \\} \\}$$
 
-The standard image-based discriminator $D_{\phi}(\textbf{X}_b \vert \textbf{D}_b)$ conditioned on the input depth image $D_b$ is used for training. That is, when passing the input image, the depth map is concatenated to it. Also, non-saturating GAN loss with $[R_1$-regularization](https://paperswithcode.com/method/r1-regularization) is used for training.
+The standard image-based discriminator $D_{\phi}(\textbf{X}_b \vert \textbf{D}_b)$ conditioned on the input depth image $D_b$ is used for training. That is, when passing the input image, the depth map is concatenated to it. Also, non-saturating GAN loss with [$R_1$-regularization](https://paperswithcode.com/method/r1-regularization) is used for training.
 
-Secondary strategy for this problem is to use *conditional VAE* (cVAE)*.* In this setting, the **encoder network predicts mean $\mu$ and variance $\sigma$ of which the latent vector $\textbf{z}$ will be sampled from given image $\textbf{X}$ and shape embedding $\textbf{s}$.** Then **the Texture Field is now used as decoder, but this time taking sampled latent vector from the predicted distribution**, not extracted by image encoder in conditional setting. Then we minimize the following variational lower bound:
+Secondary strategy for this problem is to use *conditional VAE* (cVAE)*.* In this setting, the **encoder network predicts mean $\mu$ and variance $\sigma$ of which the latent vector $\textbf{z}$ will be sampled from given image $\textbf{X}$ and shape embedding $\textbf{s}$. Then the Texture Field is now used as decoder, but this time taking sampled latent vector from the predicted distribution**, not extracted by image encoder in conditional setting. Then we minimize the following variational lower bound:
 
-$$\mathcal{L}_{VAE} = \frac{1}{B} \sum_{b=1}^{B} [ \beta KL(q_{\phi}(\textbf{z} \vert \textbf{X}_b, \textbf{s}_b) \vert\vert p_0(\textbf{z}_b)) + \sum_{i=1}^{N_b}\vert\vert t_{\theta}(\textbf{p}_{b_i}, \textbf{s}_b, \textbf{z}_b) - \textbf{c}_{b_i} \vert\vert_1]$$
+$$\mathcal{L}\_{VAE} = \frac{1}{B} \sum\_{b=1}^{B} [ \beta KL(q\_{\phi}(\textbf{z} \vert \textbf{X}\_b, \textbf{s}\_b) \vert\vert p\_0(\textbf{z}\_b)) + \sum\_{i=1}^{N\_b}\vert\vert t\_{\theta}(\textbf{p}\_{b_i}, \textbf{s}\_b, \textbf{z}\_b) - \textbf{c}\_{b_i} \vert\vert\_1]$$
 
 Here, we assume that the distribution of "extracted" latent vector $\textbf{z}_b$ follows the standard normal distribution, that is $\textbf{z}_b \sim \mathcal{N}(\textbf{z}, 0, \textbf{I})$.
 

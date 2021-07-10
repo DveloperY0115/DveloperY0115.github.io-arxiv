@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Summary of 'PhotoShape: Photorealistic Materials for Large-Scale Shape Collections'"
-use_math: true
+# use_math: true
 background: '/assets/post-images/PhotoShape/PhotoShape_PhotoShapes.png'
 ---
 
@@ -124,7 +124,7 @@ Normally, 3D shapes are semented into both object and material parts by their au
 
 Here, we **assume that any parts of the shape having the same material label share the same appearance**. (same part shape → same material assigned) Of course, one may exploit the segmentation as supervision, but this approach often over segments the object (both shape and material), and lacks the appearance symmetry found in various objects. (e.g. each leg of chair may be assigned different materials end up with awkward look)
 
-From the result of coarse alignment (i.e. found several photos associated with given shape), we can compute a 2D material part labeling $$ \textbf{p}_{\text{coarse}} \in \mathcal{P}^{N} $$ for an image of size $N$ by projecting the shape parts $$ \mathcal{P} = \{ p_1, p_2, \dots, p_{\vert \mathcal{P} \vert}\} $$ with the estimated camera pose. (Note that each pixel is assigned a probability distribution which governs the probability that a pixel is of a specific material class)**→ We now seek correspondance between parts of a given shape and associated parts of the objects in reference images.**
+From the result of coarse alignment (i.e. found several photos associated with given shape), we can compute a 2D material part labeling $ \textbf{p}\_{\text{coarse}} \in \mathcal{P}^{N} $ for an image of size $N$ by projecting the shape parts $ \mathcal{P} = \\{ p_1, p_2, \dots, p_{\vert \mathcal{P} \vert}\\} $ with the estimated camera pose. (Note that each pixel is assigned a probability distribution which governs the probability that a pixel is of a specific material class)**→ We now seek correspondance between parts of a given shape and associated parts of the objects in reference images.**
 
 Using **simple, naive projecting of the coarsely aligned part mask is insufficient** for our task. Since, 
 
@@ -166,8 +166,8 @@ It would be great to have real world data with ground truth SV-BRDF labelings, b
 Using the 3D shape and material databases, a large amount of training data can be created by applying different materials to shapes and rendering it with various camera intrinsic & extrinsic under different illuminations.
 
 - *Camera Pose Prior*: Real product images (especially photographs created for commercial purpose) have strong bias in camera poses. Therefore, **parameters for camera poses are sampled uniformly from the distribution of camera poses obtained in the coarse alignment step**.
-- *Substance Prior*: Substances do not occur randomly in objects. To enforce a substance prior, the shape substance labelings $$ q_{p_i} \in \textbf{q}_{\text{shape}} $$ from substance segmentation (section 4.3) is used. **Instead of sampling totally random material for certain part, we condition it on the substance category and sample** $m_{p_i} \sim \mathcal{U}(\{ m \vert m \in \mathcal{M}, q_m = q_{p_i} \})$.
-- *Texture Scale Normaliztion*: Since different tessellation and UV mappings can arbitrarily change the rendered scale of textures, we first normalize the UV scale for each mesh segment $$ \mathcal{S}_i $$ by computing a density $D_i=A_i^{\text{UV}} / A_{i}^{\text{World}}$  where $A_i^{\text{UV}}$ is the local UV-space surface area of the mesh and $A_{i}^{\text{World}}$ is the local world-space surface area.  The UV coordinates for the segment is then scaled by $\frac{1}{D_i}$. **→ In my understanding, the modification of object mesh in renderer might lead to wrong texturing, thus this scale factor compensates that effect**
+- *Substance Prior*: Substances do not occur randomly in objects. To enforce a substance prior, the shape substance labelings $ q_{p_i} \in \textbf{q}\_{\text{shape}} $ from substance segmentation (section 4.3) is used. **Instead of sampling totally random material for certain part, we condition it on the substance category and sample** $m_{p_i} \sim \mathcal{U}(\{ m \vert m \in \mathcal{M}, q_m = q_{p_i} \})$.
+- *Texture Scale Normaliztion*: Since different tessellation and UV mappings can arbitrarily change the rendered scale of textures, we first normalize the UV scale for each mesh segment $ \mathcal{S}\_i $ by computing a density $D_i=A_i^{\text{UV}} / A_{i}^{\text{World}}$  where $A_i^{\text{UV}}$ is the local UV-space surface area of the mesh and $A_{i}^{\text{World}}$ is the local world-space surface area.  The UV coordinates for the segment is then scaled by $\frac{1}{D_i}$. **→ In my understanding, the modification of object mesh in renderer might lead to wrong texturing, thus this scale factor compensates that effect**
 - *Randomized Rendering*: To generate a single random rendering, we first uniformly sampe a shape-exemplar pair computed during coarse step (section 4.1). Given such pair, we
 1. **sample a camera pose** from the distribution computed above (see *Camera Pose Prior*)
 2. **assign a random material** (SV-BRDF) to each shape part conditioned on the substance label (see *Substance Prior*) computed in substance segmentation (section 4.3)
@@ -201,7 +201,7 @@ The input to the classifier is **an image exemplar + a binary segmentation mask 
 
 Then the output of the classifier is an $\vert \mathcal{M} \vert$ dimensional vector $\textbf{x}^{m}$ which becomes a discrete probability mass function after going through softmax layer. This distribution is then compared with the ground truth resulting in the form of cross entropy loss:
 
-$$\mathcal{L}_{\text{mat}} (\textbf{x}^{m}, \mathcal{y}_i^{m}) = - \text{log}(\frac{\exp x_{i}^{m}}{\sum_{j} \exp x_{j}^{m}})$$
+$$ \begin{gather} \mathcal{L}\_{\text{mat}} (\textbf{x}^{m}, \mathcal{y}\_i^{m}) = - \text{log}(\frac{\exp x_{i}^{m}}{\sum_{j} \exp x_{j}^{m}}) \end{gather} $$
 
 where $\mathcal{y}_{i}^{m}$ is the ground truth label. This loss function is then optimized throughout the training.
 
@@ -211,7 +211,7 @@ One intuitive regularization one can think of is **a distance metric, which resp
 
 Therefore, **an additional fully connected layer is added to the network, and its task is to predict the substance category** $q \in \mathcal{Q}$ of an object part in the input image designated by the binary mask. The loss for this network can be defined in a similar manner:
 
-$$\mathcal{L}_{\text{sub}} (\textbf{x}^{s}, \mathcal{y}_{i}^{s}) = - \log(\frac{\exp x_{i}^{s}}{\sum_j \exp x_{j}^{s}})$$
+$$ \begin{gather} \mathcal{L}\_{\text{sub}} (\textbf{x}^{s}, \mathcal{y}\_{i}^{s}) = - \log(\frac{\exp x_{i}^{s}}{\sum_j \exp x_{j}^{s}}) \end{gather} $$
 
 where $\mathcal{y}_{i}^{s}$ is the ground truth label.
 
@@ -219,17 +219,17 @@ There are many possible ways to form the final loss by combining two losses intr
 
 The most straightforward way to achieve this is to compute a weighted sum of loss functions:
 
-$$\mathcal{L} (\textbf{x}, \textbf{y}; \lambda) = \mathcal{L}_{\text{mat}} (\textbf{x}^{m}, \textbf{y}^{m}) + \lambda \mathcal{L}_{\text{sub}} (\textbf{x}^{s}, \textbf{y}^{s})$$
+$$ \begin{gather} \mathcal{L} (\textbf{x}, \textbf{y}; \lambda) = \mathcal{L}\_{\text{mat}} (\textbf{x}^{m}, \textbf{y}^{m}) + \lambda \mathcal{L}_{\text{sub}} (\textbf{x}^{s}, \textbf{y}^{s}) \end{gather} $$
 
-for some weighting coefficient $\lambda$. However, the authors of the paper found it more efficient to use the uncertainty weighted multitask loss from [Kendall et al., 2018] which defines a weighting based on learned homoscedastic (task-dependent, but not data-dependent) uncertainties $$\hat{\sigma}_{m}^{2}$$, $$\hat{\sigma}_{s}^{2}$$. To summarize, the finalized form of the loss function is:
+for some weighting coefficient $\lambda$. However, the authors of the paper found it more efficient to use the uncertainty weighted multitask loss from [Kendall et al., 2018] which defines a weighting based on learned homoscedastic (task-dependent, but not data-dependent) uncertainties $ \hat{\sigma}\_{m}^{2} $, $ \hat{\sigma}_{s}^{2} $. To summarize, the finalized form of the loss function is:
 
-$$\mathcal{L} (\textbf{x}, \textbf{y}; \hat{\sigma}) = \mathcal{L}_{\text{mat}} (\textbf{x}^{m}, \textbf{y}^{m}) \hat{\sigma}_{m}^{-2} + \log \hat{\sigma}_{m}^{2} + \mathcal{L}_{\text{sub}} (\textbf{x}^{s}, \textbf{y}^{s}) \hat{\sigma}_{s}^{-2} + \log \hat{\sigma}_{s}^{2}$$
+$$ \begin{gather} \mathcal{L} (\textbf{x}, \textbf{y}; \hat{\sigma}) = \mathcal{L}\_{\text{mat}} (\textbf{x}^{m}, \textbf{y}^{m}) \hat{\sigma}\_{m}^{-2} + \log \hat{\sigma}\_{m}^{2} + \mathcal{L}\_{\text{sub}} (\textbf{x}^{s}, \textbf{y}^{s}) \hat{\sigma}\_{s}^{-2} + \log \hat{\sigma}_{s}^{2} \end{gather} $$
 
 Since the coefficients with negative exponent may cause divide-by-zero or any kinds of numerical unstability, the following form is used instead, by optimizing log variance $\hat{s} \colon = \log \hat{\sigma}^{2}$:
 
-$$\mathcal{L} (\textbf{x}, \textbf{y}; \hat{\textbf{s}}) = \mathcal{L}_{\text{mat}} (\textbf{x}^{m}, \textbf{y}^{m}) \exp (- \hat{s}_{m}) + \hat{s}_{m} + \mathcal{L}_{\text{sub}} (\textbf{x}^{s}, \textbf{y}^{s}) \exp (- \hat{s}_{s}) + \hat{s}_{s}$$
+$$ \begin{gather} \mathcal{L} (\textbf{x}, \textbf{y}; \hat{\textbf{s}}) = \mathcal{L}\_{\text{mat}} (\textbf{x}^{m}, \textbf{y}^{m}) \exp (- \hat{s}\_{m}) + \hat{s}\_{m} + \mathcal{L}\_{\text{sub}} (\textbf{x}^{s}, \textbf{y}^{s}) \exp (- \hat{s}\_{s}) + \hat{s}_{s} \end{gather} $$
 
-The initial values for uncertainties are $$ \hat{s}_{m} = 0.0 $$, $$ \hat{s}_{s} = -1.0 $$ , respectively.
+The initial values for uncertainties are $ \hat{s}\_{m} = 0.0 $, $ \hat{s}_{s} = -1.0 $ , respectively.
 
 ## Implementation & Experimental Results
 

@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Summary of 'Stable View Synthesis'"
-use_math: true
+# use_math: true
 background: '/assets/post-images/SVS/SVS_method_overview.png'
 ---
 
@@ -19,19 +19,19 @@ background: '/assets/post-images/SVS/SVS_method_overview.png'
 
 ## Overview
 
-**The input for SVS is a set of images** $$\{ \mathcal{I}_n \}_{n=1}^{N}$$, which are used to obtain a geometric scaffold $\Gamma$. These images are used to determine the basis for the feature vectors embedded on the surface.
+**The input for SVS is a set of images** $\\{ \mathcal{I}\_n \\}_{n=1}^{N}$, which are used to obtain a geometric scaffold $\Gamma$. These images are used to determine the basis for the feature vectors embedded on the surface.
 
 **The goal is to render a plausible, realistic image** $\mathcal{O}$ that would've seen from a new viewpoint specified by transform $(\textbf{R}_t, \textbf{t}_t)$ and camera intrinsic $\textbf{K}_t$.
 
 At the core is a 3D geometric scaffold. In order to build it, various methods like standard SfM (Structure from Motion), MVS (Multi-View Stereo), and surface reconstruction are used.
 
-First, SfM is ran to extract camera instrinsics $$\{ \textbf{K}_n \}_{n=1}^{N}$$ as well as camera poses such as rotation matrices $$\{ \textbf{R}_n \}_{n=1}^{N}$$ and translation vectors $$\{ \textbf{t}_n \}_{n=1}^{N}$$ from the input images.
+First, SfM is ran to extract camera instrinsics $ \\{ \textbf{K}\_n \\}_{n=1}^{N} $ as well as camera poses such as rotation matrices $ \\{ \textbf{R}\_n \\}\_{n=1}^{N} $ and translation vectors $ \\{ \textbf{t}\_n \\}\_{n=1}^{N} $ from the input images.
 
 
 <img class="img-fluid" src="/assets/post-images/SVS/SVS_SfM.png">
 <span class="caption text-muted">Figure 2. <b>Visualization of Structure from Motion</b>. This classical deterministic method extracts camera poses as well as intrinsics from a set of input image, making a foundation for the reconstructed scene. Source: Vladlen Koltun: Towards Photorealism (Sep. 2020)</span>
 
-**Important notification here is that the symbol $$ \{ \mathcal{I}_n \}_{n=1}^{N} $$ will be used to denote the rectified images after applying SfM.**
+**Important notification here is that the symbol $ \\{ \mathcal{I}\_n \\}_{n=1}^{N} $ will be used to denote the rectified images after applying SfM.**
 
 And then MVS is ran on the posed images, to obtain per-image depth maps, and these are fused into a (colored) point cloud.
 
@@ -57,13 +57,13 @@ One important takeaway here is that each 3D point aggregates features from a num
 
 ## Image Encoding
 
-Each source image $$\mathcal{I}_k$$ is encoded into a feature tensor by a U-Net-like convolutional network. Again, *remember that the source image here denotes the input images after preprocessing* steps explained earlier. From now on, this encoding network is denoted by $\phi_{enc}$.
+Each source image $ \mathcal{I}\_k $ is encoded into a feature tensor by a U-Net-like convolutional network. Again, *remember that the source image here denotes the input images after preprocessing* steps explained earlier. From now on, this encoding network is denoted by $\phi_{enc}$.
 
 **The encoder part of $\phi_{enc}$ consists of an ImageNet-pretrained ResNet18**, and parameters for batch normalization are fixed.
 
 In **decoder** part, each stage upsamples the feature map, concatenates it with the feature map having the same resolution from the encoder, and convolution and activation layers are applied.
 
-The resulting feature tensor of image is denoted by $$ \mathcal{F}_n = \phi_{enc}(\mathcal{I}_n) $$.
+The resulting feature tensor of image is denoted by $ \mathcal{F}\_n = \phi_{enc}(\mathcal{I}_n) $.
 
 ## On-Surface Aggregation
 
@@ -72,18 +72,18 @@ The resulting feature tensor of image is denoted by $$ \mathcal{F}_n = \phi_{enc
 
 🤔 **This is the heart of this work. READ CAREFULLY!** 🤔
 
-Think about common rendering techniques in computer graphics. One of the steps in rendering is to find which points & material in the scene contribute to which pixels. This idea is applied in similar manner. **Given a point $\textbf{x} \in \Gamma \subset \mathbb{R}^3$ on the 3D geometric scaffold, for each viewing direction $\textbf{u}$ (I think this models the spatially-varying BRDFs in physically based rendering), a feature vector $\textbf{g}(\textbf{x}, \textbf{u})$ is calculated**. ****Here, $\textbf{u}$ is the viewing direction vecctor from the target camera center to the surface point $\textbf{x}$.
+Think about common rendering techniques in computer graphics. One of the steps in rendering is to find which points & material in the scene contribute to which pixels. This idea is applied in similar manner. **Given a point $\textbf{x} \in \Gamma \subset \mathbb{R}^3$ on the 3D geometric scaffold, for each viewing direction $\textbf{u}$ (I think this models the spatially-varying BRDFs in physically based rendering), a feature vector $\textbf{g}(\textbf{x}, \textbf{u})$ is calculated**. Here, $\textbf{u}$ is the viewing direction vecctor from the target camera center to the surface point $\textbf{x}$.
 
-Actually, there is another argument for $\textbf{g}$, which is the set $$ \{ (\textbf{v}_k, \textbf{f}_k(\textbf{x}))\}_{k=1}^{K} $$ where:
+Actually, there is another argument for $\textbf{g}$, which is the set $ \\{ (\textbf{v}\_k, \textbf{f}\_k(\textbf{x}))\\}_{k=1}^{K} $ where:
 
-- $$ \{ \textbf{f}_k(\textbf{x}) \}_{k=1}^{K} $$: The set of features defined at $\textbf{x}$ on the scaffold, extracted from source images where $\textbf{x}$ is visible. Note that each $\textbf{f}_k$ is from the image encoding $\mathcal{F}_k$ by querying the encoding with point $\textbf{x}$.
-- And $$ \{ \textbf{v}_k \}_{k=1}^{K} $$ are corresponding viewing directions. Note that these could be obtained during preprocessing.
+- $ \{ \textbf{f}\_k(\textbf{x}) \}_{k=1}^{K} $: The set of features defined at $\textbf{x}$ on the scaffold, extracted from source images where $\textbf{x}$ is visible. Note that each $\textbf{f}_k$ is from the image encoding $\mathcal{F}\_k$ by querying the encoding with point $\textbf{x}$.
+- And $ \\{ \textbf{v}\_k \\}_{k=1}^{K} $ are corresponding viewing directions. Note that these could be obtained during preprocessing.
 
 Specifically, $\textbf{f}_k(\textbf{x}) = \mathcal{F}_k(\textbf{K}_k(\textbf{R}_k \textbf{x} + \textbf{t}_k))$ using bilinear interpolation. → Maybe this implies the estimated viewpoint information where source images were taken?
 
 Formally, the target feature vector for a given 3D surface point $\textbf{x}$ and associated novel viewing direction $\textbf{u}$ is computed as:
 
-$$\textbf{g}(\textbf{x}, \textbf{u}) = \phi_{aggr}(\textbf{u}, \{ (\textbf{v}_k, \textbf{f}_k(\textbf{x}))\}_{k=1}^{K})$$
+$ \textbf{g}(\textbf{x}, \textbf{u}) = \phi_{aggr}(\textbf{u}, \\{ (\textbf{v}\_k, \textbf{f}\_k(\textbf{x})) \\}_{k=1}^{K}) $
 
 Here, $K$ is the number of source images that $\textbf{x}$ is visible. And here are important questions:
 
@@ -106,13 +106,13 @@ where $\textbf{f}^{\prime}_{k} = [ \textbf{u}, \textbf{v}_k, \textbf{f}_k(\textb
 
 Varation of approach is to use a **graph attention network (GAT)** that operates on a fully-connected graph between the source view per 3D point.
 
-$$\phi_{aggr}^{GAT} = \nu_{k=1}^{K} \text{GAT}(\{ \textbf{f}^{\prime}_{k}\}_{k=1}^{K}) \vert_{k}$$
+$$ \phi_{aggr}^{GAT} = \nu_{k=1}^{K} \text{GAT}(\{ \textbf{f}^{\prime}\_{k}\}\_{k=1}^{K}) \vert_{k} $$
 
 where $\cdot \vert_k$ is the readout of the feature vector on node $k$.
 
-Alternatively, we can even append $(\textbf{u}, \textbf{g}^{\prime})$ into consideration by forming fully connected graph over set $$ \{ (\textbf{u}, \textbf{g}^{\prime})\} \cup \{ (\textbf{v}_k, \textbf{f}_k(\textbf{x}))\}_{k=1}^{K} $$. Here, $\textbf{g}^{\prime}$ is initialized by following the "weighted average" method described in the beginning. Then, the modified aggregation function becomes:
+Alternatively, we can even append $(\textbf{u}, \textbf{g}^{\prime})$ into consideration by forming fully connected graph over set $ \\{ (\textbf{u}, \textbf{g}^{\prime}) \\} \cup \\{ (\textbf{v}\_k, \textbf{f}\_k(\textbf{x}))\\}_{k=1}^{K} $. Here, $\textbf{g}^{\prime}$ is initialized by following the "weighted average" method described in the beginning. Then, the modified aggregation function becomes:
 
-$$\phi_{aggr}^{\text{GAT-RO}} = \text{GAT} (\{ (\textbf{u}, \textbf{g}^{\prime})\} \cup \{ (\textbf{v}_k, \textbf{f}_k(\textbf{x}))\}_{k=1}^{K}) \vert_0$$
+$$\phi_{aggr}^{\text{GAT-RO}} = \text{GAT} (\{ (\textbf{u}, \textbf{g}^{\prime})\} \cup \{ (\textbf{v}\_k, \textbf{f}\_k(\textbf{x}))\}_{k=1}^{K}) \vert_0$$
 
 where $\cdot \vert_0$ denotes the readout of the feature vector associated with the target node.
 
@@ -127,13 +127,13 @@ Suppose that a novel viewpoint is specified by camera intrinsic $\textbf{K}_t$, 
 
 First, a depth map $\mathcal{D} \in \mathbb{R}^{H \times W}$ is calculated from 3D geometric scaffold $\Gamma$.
 
-Then, each pixel center of the target image is unprojected back to 3D space based on the depth map $\mathcal{D}$, giving us **the set of surface points** $$ \{ \textbf{x}_{h, w} \}_{h,w=1,1}^{H \times W} $$ corresponding to each pixel in $\mathcal{O}$. **Due to the incompleteness of $\Gamma$, some depth values might not be valid for some pixels.** For example, a point could be unprojected into the void(...) or background. For such cases, $\infty$ is assigned to depth value.
+Then, each pixel center of the target image is unprojected back to 3D space based on the depth map $\mathcal{D}$, giving us **the set of surface points** $ \\{ \textbf{x}\_{h, w} \\}_{h,w=1,1}^{H \times W} $ corresponding to each pixel in $\mathcal{O}$. **Due to the incompleteness of $\Gamma$, some depth values might not be valid for some pixels.** For example, a point could be unprojected into the void(...) or background. For such cases, $\infty$ is assigned to depth value.
 
-Now we have 3D surface points associated with each pixels of the target image $\mathcal{O}$ as well as their viewing directions $\textbf{u}$s, the view-dependent feature vectors $$ \{ \textbf{g}(\textbf{x}_{h, w})\}_{h,w}^{H \times W} $$ can be calculated by means explained earlier, and eventually form a feature tensor $$ \mathcal{G} = [\textbf{g}_{h, w}]_{h,w = 1, 1}^{H \times W} $$. If a 3D surface $$ \textbf{x}_{h, w} $$ didn't have any source image seeing it, simply assign 0 to $$ \textbf{g}_{h,w} $$. 
+Now we have 3D surface points associated with each pixels of the target image $\mathcal{O}$ as well as their viewing directions $\textbf{u}$s, the view-dependent feature vectors $ \\{ \textbf{g}(\textbf{x}\_{h, w}) \\}\_{h,w}^{H \times W} $ can be calculated by means explained earlier, and eventually form a feature tensor $ \mathcal{G} = [\textbf{g}\_{h, w}]\_{h,w = 1, 1}^{H \times W} $. If a 3D surface $ \textbf{x}\_{h, w} $ didn't have any source image seeing it, simply assign 0 to $ \textbf{g}_{h,w} $.
 
 At last, to synthesize the image $\mathcal{O}$ from the feature tensor $\mathcal{G}$, a convolutional neural network $\phi_{\text{render}}$ is used, that is $\mathcal{O} = \phi_{\text{render}}(\mathcal{G})$. For $\phi_{\text{render}}$, a sequence of $L$ U-Nets are used, and the result of previous U-Net is fed to the one at the next step, along with the original $\mathcal{G}$. Rigorously,
 
-$$\phi_{\text{render}}(\mathcal{G}) = \phi^{L}_{\text{render}}(\mathcal{G} + \phi_{\text{render}}^{L-1}(\mathcal{G} + \dots))$$
+$$\phi_{\text{render}}(\mathcal{G}) = \phi^{L}\_{\text{render}}(\mathcal{G} + \phi_{\text{render}}^{L-1}(\mathcal{G} + \dots)) $$
 
 # Training
 
@@ -151,7 +151,7 @@ Given a set of scenes, iterate the following process.
 
 The loss is of form:
 
-$$\mathbb{L}(\mathcal{O}, \mathcal{I}_n) = \vert\vert \mathcal{O} - \mathcal{I}_n \vert\vert_{1} + \sum_{l} \lambda_{l} \vert\vert \phi_{l}(\mathcal{O}) - \phi_{l}(\mathcal{I}_n) \vert\vert_1$$
+$$ \mathbb{L}(\mathcal{O}, \mathcal{I}\_n) = \vert\vert \mathcal{O} - \mathcal{I}\_n \vert\vert_{1} + \sum_{l} \lambda_{l} \vert\vert \phi_{l}(\mathcal{O}) - \phi_{l}(\mathcal{I}_n) \vert\vert_1 $$
 
 where $\phi_l$ are the outputs of some convolutional layers of a pretrained VGG-19 network.
 
@@ -165,12 +165,12 @@ The common solution to fine-tune the network parameters $\theta = [\theta_{\text
 
 ## Scene fine-tuning
 
-The more powerful method which can significantly improve the result is to **optimize the source images** along with the parameters of $\phi_{\text{enc}}$ as well. The origin of this idea is the point where we notice that the final output $\mathcal{O}$ is a function of the "encoded" source images $$ \{ \phi_{\text{enc}}(\mathcal{I}_m; \theta_{\text{enc}})\}_{m=1}^{M} $$ that are used as input of subsequent networks such as $$ \phi_{\text{aggr}} $$, $$ \phi_{\text{render}} $$.
+The more powerful method which can significantly improve the result is to **optimize the source images** along with the parameters of $\phi_{\text{enc}}$ as well. The origin of this idea is the point where we notice that the final output $\mathcal{O}$ is a function of the "encoded" source images $ \{ \phi_{\text{enc}}(\mathcal{I}\_m; \theta_{\text{enc}})\}\_{m=1}^{M} $ that are used as input of subsequent networks such as $ \phi_{\text{aggr}} $, $ \phi_{\text{render}} $.
 
-Until now, only $\theta_{\text{enc}}$ are trained through gradient descent. However, we can **come up with an idea of optimizing the encoded source images $$ \{ \phi_{\text{enc}}(\mathcal{I}_m; \theta_{\text{enc}})\}_{m=1}^{M} $$ together**.
+Until now, only $\theta_{\text{enc}}$ are trained through gradient descent. However, we can **come up with an idea of optimizing the encoded source images $ \\{ \phi\_{\text{enc}}(\mathcal{I}\_m; \theta\_{\text{enc}})\\}\_{m=1}^{M} $ together**.
 
-To achieve it, the image encoder should undergo little modification. Specifically, the image encoder becomes a function of form $\phi_{\text{enc}}(m; \theta_{\text{enc}}, \theta_{\text{imgs}})$. In words, the input of the network is altered from a source image $$ \mathcal{I}_m $$ to the index $m$. This index points at one of the trainable parameters in $\theta_{\text{imgs}}$, a pool of trainable parameters associated with source images. 
+To achieve it, the image encoder should undergo little modification. Specifically, the image encoder becomes a function of form $\phi_{\text{enc}}(m; \theta_{\text{enc}}, \theta_{\text{imgs}})$. In words, the input of the network is altered from a source image $ \mathcal{I}\_m $ to the index $m$. This index points at one of the trainable parameters in $\theta_{\text{imgs}}$, a pool of trainable parameters associated with source images.
 
-**In this context,** **$$ \theta_{\text{imgs}} $$ are initialized with the "actual" source images but unlike actual ones, they are optimized** with the parameters of the image encoder network $\theta_{\text{enc}}$. Thus, the source images are now mutable, and can be optimized through the training process. Note that the encoder can be denoted by $\phi_{\text{enc}}(\theta_{\text{imgs}}[m]; \theta_{\text{enc}})$, which is more similar to the previous notation without source image optimization.
+**In this context,** **$ \theta\_{\text{imgs}} $ are initialized with the "actual" source images but unlike actual ones, they are optimized** with the parameters of the image encoder network $\theta_{\text{enc}}$. Thus, the source images are now mutable, and can be optimized through the training process. Note that the encoder can be denoted by $\phi_{\text{enc}}(\theta_{\text{imgs}}[m]; \theta_{\text{enc}})$, which is more similar to the previous notation without source image optimization.
 
-As a result of the above discussion, the optimization problem is now $$ \text{argmin}_{\theta, \theta_{\text{imgs}}} \mathbb{L}(\mathcal{O}, \mathcal{I}_n) $$. However, the training process is still the same. **One important point is that while there are trainable parameters $\theta_{\text{imgs}}$ associated, and initialized with source images $$ \{ \mathcal{I}_n \}_{n=1}^{N} $$, but these source images must remain the same since they are used to calculate loss $$ \mathbb{L}(\mathcal{O}, \mathcal{I}_n) $$**. Without this constraint on the originality, the network may learn in weird way, producing meaningless images in the end.
+As a result of the above discussion, the optimization problem is now $ \text{argmin}\_{\theta, \theta_{\text{imgs}}} \mathbb{L}(\mathcal{O}, \mathcal{I}\_n) $. However, the training process is still the same. **One important point is that while there are trainable parameters $\theta\_{\text{imgs}}$ associated, and initialized with source images $ \\{ \mathcal{I}\_n \\}\_{n=1}^{N} $, but these source images must remain the same since they are used to calculate loss $ \mathbb{L}(\mathcal{O}, \mathcal{I}\_n) $**. Without this constraint on the originality, the network may learn in weird way, producing meaningless images in the end.

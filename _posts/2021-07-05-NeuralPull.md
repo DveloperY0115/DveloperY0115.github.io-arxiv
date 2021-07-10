@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Summary of 'Neural-Pull: Learning Signed Distance Functions from Point Clouds by Learning to Pull Space onto Surfaces'"
-use_math: true
+# use_math: true
 background: '/assets/post-images/NeuralPull/NeuralPull_fig1.png'
 ---
 
@@ -27,7 +27,7 @@ A neural network for learning SDFs that represent 3D shapes.
 
 An SDF $\boldsymbol{\mathcal{f}}$ predicts a signed distance value $s \in \mathbb{R}$ for a query 3D location $\textbf{q} = [x, y, z]$.
 
-Optionally, one can provide an additional condition $\mathcal{c}$ as input, such that $f(\textbf{c}, \textbf{q}) = s$. Unlike previous approahes *(Park et al., 2019; Michalkiewicz et al., 2019)* which provided known SDF values during training, **this work aims to learn SDF $f$ in a 3D space directly from 3D point cloud** $\textbf{P} = \{ \textbf{p}_j, j \in [1, J]\}$.
+Optionally, one can provide an additional condition $\mathcal{c}$ as input, such that $f(\textbf{c}, \textbf{q}) = s$. Unlike previous approahes *(Park et al., 2019; Michalkiewicz et al., 2019)* which provided known SDF values during training, **this work aims to learn SDF $f$ in a 3D space directly from 3D point cloud** $\textbf{P} = \\{ \textbf{p}_j, j \in [1, J]\\}$.
 
 ## Overview
 
@@ -36,7 +36,7 @@ Optionally, one can provide an additional condition $\mathcal{c}$ as input, such
 
 *Neural-Pull* is a neural network that learns how to pull a 3D space onto the surface represented by the point cloud $\textbf{P}$, and eventually learns to represent a SDF $f$. 
 
-It uses the given point cloud $\textbf{P}$ and the gradient within the network itself to represent 3D shapes. It tries to learn to pull a query location $q_i$ randomly sampled around the surface to its nearest neighbor $\textbf{t}_i$ on the surface, where the query locations form a set $\textbf{Q} = \{ \textbf{q}_i, i \in [1, I]\}$. 
+It uses the given point cloud $\textbf{P}$ and the gradient within the network itself to represent 3D shapes. It tries to learn to pull a query location $q_i$ randomly sampled around the surface to its nearest neighbor $\textbf{t}_i$ on the surface, where the query locations form a set $\textbf{Q} = \\{ \textbf{q}_i, i \in [1, I] \\} $.
 
 The pulling operation pulls the query location $q_i$ with a stride of signed distance $s_i$, along or against (since the query point can either be inside or outside of the surface) the direction of the gradient $\textbf{g}_i$ at $\textbf{q}_i$, obtained within the network.
 
@@ -55,18 +55,18 @@ where $\textbf{q}_i = [x, y, z]$. Note that it's often denoted as $\nabla f (\te
 
 That being said, we can use such property to define 'pulling' operation, which pulls a query point $\textbf{q}_i$ onto a point $\textbf{t}_i$, along or against the direction of gradient $\textbf{g}_i$. And the equation is as follows:
 
-$$\textbf{t}_i^{\prime} = \textbf{q}_i - f(\textbf{c}, \textbf{q}_i) \times \frac{\nabla f (\textbf{c}, \textbf{q}_i)}{\left\lVert \nabla f (\textbf{c}, \textbf{q}_i) \right\rVert_{2}} $$
+$$ \begin{gather} \textbf{t}_i^{\prime} = \textbf{q}_i - f(\textbf{c}, \textbf{q}_i) \times \frac{\nabla f (\textbf{c}, \textbf{q}_i)}{\left\lVert \nabla f (\textbf{c}, \textbf{q}_i) \right\rVert\_{2}} \end{gather} $$
 
-where $$\textbf{t}_i^{\prime}$$ is the pulled query point $$ \textbf{q}_i $$ after pulling, $\textbf{c}$ is the condition to represent ground truth point cloud $\textbf{P}$, and $$ \nabla f (\textbf{c}, \textbf{q}_i) / \lVert \nabla f (\textbf{c}, \textbf{q}_i) \rVert_{2} $$ is the unit vector representing the directional component of the gradient $\nabla f (\textbf{c}, \textbf{q}_i)$. Since $f$ is a continuously differentiable function, $\nabla f (\textbf{c}, \textbf{q}_i)$ can be easily obtained via back-propagation.
+where $ \textbf{t}\_i^{\prime} $ is the pulled query point $ \textbf{q}_i $ after pulling, $\textbf{c}$ is the condition to represent ground truth point cloud $\textbf{P}$, and $ \nabla f (\textbf{c}, \textbf{q}_i) / \lVert \nabla f (\textbf{c}, \textbf{q}_i) \rVert\_{2} $ is the unit vector representing the directional component of the gradient $\nabla f (\textbf{c}, \textbf{q}_i)$. Since $f$ is a continuously differentiable function, $\nabla f (\textbf{c}, \textbf{q}_i)$ can be easily obtained via back-propagation.
 
 As shown in the figure 1, there are two possible cases when applying this operation on the query point:
 
-1. $$ \textbf{q}_i $$ inside of the shape $\textbf{P}$: $s_i < 0$, then the operation will pull $$ \textbf{q}_i $$ *along* the direction of gradient such that $$ \textbf{t}_i^{\prime} = \textbf{q}_i + \vert f (\textbf{c}, \textbf{q}_i)\vert \times \nabla f (\textbf{c}, \textbf{q}_i) / \lVert \nabla f (\textbf{c}, \textbf{q}_i) \rVert_{2} $$.
-2. $$ \textbf{q}_i $$ outside of the shape $$ \textbf{P} $$: $s_i > 0$, then the operation will pull $\textbf{q}_i$ *against* the direction of gradient such that  $$ \textbf{t}_i^{\prime} = \textbf{q}_i - \vert f (\textbf{c}, \textbf{q}_i)\vert \times \nabla f (\textbf{c}, \textbf{q}_i) / \lVert \nabla f (\textbf{c}, \textbf{q}_i) \rVert_{2} $$.
+1. $ \textbf{q}\_i $ inside of the shape $\textbf{P}$: $s_i < 0$, then the operation will pull $ \textbf{q}\_i $ *along* the direction of gradient such that $ \textbf{t}_i^{\prime} = \textbf{q}_i + \vert f (\textbf{c}, \textbf{q}_i)\vert \times \nabla f (\textbf{c}, \textbf{q}_i) / \lVert \nabla f (\textbf{c}, \textbf{q}_i) \rVert\_{2} $.
+2. $ \textbf{q}\_i $ outside of the shape $ \textbf{P} $: $s_i > 0$, then the operation will pull $\textbf{q}\_i$ *against* the direction of gradient such that  $ \textbf{t}\_{i}^{\prime} = \textbf{q}_i - \vert f (\textbf{c}, \textbf{q}_i)\vert \times \nabla f (\textbf{c}, \textbf{q}_i) / \lVert \nabla f (\textbf{c}, \textbf{q}_i) \rVert\_{2} $.
 
 ## Query Locations Sampling
 
-The query locations are sampled randomly around each point $$ \textbf{p}_j $$ of the ground truth point cloud $\textbf{P}$. Specifically, we construct an isotropic Gaussian distribution $\mathcal{N} (\textbf{p}_{j}, \sigma^{2})$ for each point $\textbf{p}_j \in \textbf{P}$. Then we sample 25 points from the distribution. Here, the variance $\sigma^{2}$ determines how widely the sample points are spreaded according to the mean point $\textbf{p}_j$.
+The query locations are sampled randomly around each point $ \textbf{p}\_j $ of the ground truth point cloud $\textbf{P}$. Specifically, we construct an isotropic Gaussian distribution $\mathcal{N} (\textbf{p}_{j}, \sigma^{2})$ for each point $\textbf{p}_j \in \textbf{P}$. Then we sample 25 points from the distribution. Here, the variance $\sigma^{2}$ determines how widely the sample points are spreaded according to the mean point $\textbf{p}_j$.
 
 Particularly, this work used an adaptive way to set $\sigma^{2}$ as the square distance between $\textbf{p}_j$ and its 50-th nearest neighbor. → reflects location density around $\textbf{p}_j$
 
@@ -76,9 +76,9 @@ This adaptive sampling improves the learning accuracy, since it's hard to predic
 
 The goal of the network is to train a network so that it can pull a query location $\textbf{q}_i$ to its nearest neighbor $\textbf{t}_i$ on the point cloud $\textbf{P}$. Thus, one of the effective way to guide the network to learn this behavior is to constrain it on the square error (Euclidean distance between the predicted and ground truth),
 
-$$d(\{ \textbf{t}_{i}^{\prime}\}, \{ \textbf{t}_{i}\}) = \frac{1}{I} \sum_{i \in [1, I]} \lVert \textbf{t}_{i}^{\prime} - \textbf{t}_{i} \rVert_{2}^{2}$$
+$$ \begin{gather} d(\\{ \textbf{t}\_{i}^{\prime}\\}, \\{ \textbf{t}\_{i}\\}) = \frac{1}{I} \sum_{i \in [1, I]} \lVert \textbf{t}\_{i}^{\prime} - \textbf{t}\_{i} \rVert_{2}^{2} \end{gather} $$
 
-here, $$ \textbf{t}_{i}^{\prime} $$ is the pulled query point obtained by the pulling operation described previously, and $$ \textbf{t}_{i} $$ is the nearest neighbor of $$ \textbf{t}_{i}^{\prime} $$, which is one of $\textbf{p}_{j}$s in the set of points in point cloud $\textbf{P}$.
+here, $ \textbf{t}\_{i}^{\prime} $ is the pulled query point obtained by the pulling operation described previously, and $ \textbf{t}\_{i} $ is the nearest neighbor of $ \textbf{t}\_{i}^{\prime} $, which is one of $\textbf{p}\_{j}$s in the set of points in point cloud $\textbf{P}$.
 
 ## Convergence to SDF
 
@@ -94,7 +94,7 @@ Obviously, the equation of pulling operation is also valid in the case of unsign
 In the figure 2, one can easily observe that the gradient of signed distance field has constant value as a query point $\textbf{q}$ moves along a particular direction. Meanwhile, for the case of unsigned distance field, there's a discontinuity when the $\textbf{q}$ is actually on the surface. Thus, from this observation, we can derive that a continuous function approximated by MLP can automatically converge to an SDF (not uSDF) using the proposed loss.
 
 **Theorem 1.**
-A continuous function $f$ implemented by MLP which is trained to minimize $\ell_2$ loss $$ d(\{ \textbf{t}_{i}^{\prime}\}, \{ \textbf{t}_{i}\}) = \frac{1}{I} \sum_{i \in [1, I]} \lVert \textbf{t}_{i}^{\prime} - \textbf{t}_{i} \rVert_{2}^{2} $$, can converge to a signed distance function if the equation $f(\textbf{p} - \textbf{N} \Delta t) = - f (\textbf{p} + \textbf{N} \Delta t)$ is satisfied at any point $\textbf{p}$ on the surface $(f(\textbf{p})=0)$, where $\textbf{N}$ is the normal at $\textbf{p}$, $\lVert \Delta t\rVert < \mu$ and $\mu$ indicates a small number.
+A continuous function $f$ implemented by MLP which is trained to minimize $\ell_2$ loss $ d(\{ \textbf{t}\_{i}^{\prime}\}, \{ \textbf{t}\_{i}\}) = \frac{1}{I} \sum_{i \in [1, I]} \lVert \textbf{t}\_{i}^{\prime} - \textbf{t}\_{i} \rVert_{2}^{2} $, can converge to a signed distance function if the equation $f(\textbf{p} - \textbf{N} \Delta t) = - f (\textbf{p} + \textbf{N} \Delta t)$ is satisfied at any point $\textbf{p}$ on the surface $(f(\textbf{p})=0)$, where $\textbf{N}$ is the normal at $\textbf{p}$, $\lVert \Delta t\rVert < \mu$ and $\mu$ indicates a small number.
 
 **Proof of Theorem 1.**
 Since $f$ is a continuous function representing SDF, if $\nabla f(\textbf{p}) \neq \textbf{0}$, the normal at $\textbf{p}$ becomes $\textbf{N} = \nabla f (\textbf{p}) / \lVert \nabla f (\textbf{p}) \rVert_{2}$. Assuming $\Delta \textbf{p} = \textbf{N} \Delta t$ and from the definition of gradient, we have,
@@ -140,7 +140,7 @@ The result justifies the effectiveness of the proposed method.
 
 For ground truth, the authors randomly sampled $J = 2 \times 10^{4}$ points $\textbf{p}_{j}$ from point clouds formed by $1 \times 10^{5}$ points released by OccNet.
 
-As mentioned previously, 25 query points $$ \textbf{q}_i $$ are sampled (with adaptive sampling strategy) for each point $\textbf{p}_{j}$ forming the corresponding query location set $\textbf{Q}$, such that $i \in [1, I]$ and $I = 25 \times J = 5 \times 10^{5}$.
+As mentioned previously, 25 query points $ \textbf{q}\_i $ are sampled (with adaptive sampling strategy) for each point $\textbf{p}_{j}$ forming the corresponding query location set $\textbf{Q}$, such that $i \in [1, I]$ and $I = 25 \times J = 5 \times 10^{5}$.
 
 During training, 5000 query points are randomly chosen from $\textbf{Q}$ as a batch to train the network. Two different sampling strategies were examined during the experiment:
 
@@ -151,7 +151,7 @@ While the second method is expected to perform well since the uniform sampling o
 
 The authors used a neural network similar to OccNet to learn the signed distance function.
 
-Adam optimizer with an initial learning rate of $0.0001$ was used and the network was trained for $2500$ epochs. Furthermore, the network parameters were initialized using the geometric network initialization (GNI) to approximate the signed distance function of a sphere.
+Adam optimizer with an initial learning rate of 0.0001 was used and the network was trained for 2500 epochs. Furthermore, the network parameters were initialized using the geometric network initialization (GNI) to approximate the signed distance function of a sphere.
 
 # Experiments and Analysis
 
