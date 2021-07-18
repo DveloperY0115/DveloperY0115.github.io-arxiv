@@ -19,6 +19,9 @@ background: '/assets/post-images/NeuralPull/NeuralPull_fig1.png'
 
 ---
 
+# TL;DR
+This paper proposes novel approach for reconstructing SDF from given point cloud by "pulling" points along the direction of gradient of SDF. One significant aspect of this approach is that the network can learn SDF from given point cloud **without** any supervision on ground truth SDF.
+
 # Method
 
 ## Problem Statement
