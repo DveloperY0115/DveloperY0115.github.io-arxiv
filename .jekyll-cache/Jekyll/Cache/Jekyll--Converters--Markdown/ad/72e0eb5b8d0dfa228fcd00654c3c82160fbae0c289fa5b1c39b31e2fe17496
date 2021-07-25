@@ -1,63 +1,61 @@
----
-layout: post
-title: "Summary of 'Neural Geometric Level of Detail: Real-time Rendering with Implicit 3D Shapes (CVPR 2021, Oral)'"
-background: '/assets/post-images/NeuralGeometricLOD/background.jpg'
----
+I"#V<h1 id="motivations">Motivations</h1>
 
-# Motivations
+<ul>
+  <li>Recently, neural signed distance functions (SDFs) are widely used to represent (approximate) complex shapes using large, fixed-size neural network. While these representations have advantage over discrete representations such as voxels or point clouds in terms of fidelity, <strong>rendering the shapes in this form requires lots of time and heavy computation (e.g. sphere tracing requires hundreds of SDF evaluations <em>per pixel</em> to converge).</strong></li>
+  <li>Thus, we want an efficient representation which enables us to quickly (possibly in real time) render such shapes and memory efficient, while keeping the merit of SDF representation capable of capturing geometric details of target shape.</li>
+</ul>
 
-- Recently, neural signed distance functions (SDFs) are widely used to represent (approximate) complex shapes using large, fixed-size neural network. While these representations have advantage over discrete representations such as voxels or point clouds in terms of fidelity, **rendering the shapes in this form requires lots of time and heavy computation (e.g. sphere tracing requires hundreds of SDF evaluations *per pixel* to converge).**
-- Thus, we want an efficient representation which enables us to quickly (possibly in real time) render such shapes and is memory efficient, while keeping the merit of SDF representation capable of capturing geometric details of target shape.
+<h1 id="key-contributions">Key Contributions</h1>
 
-# Key Contributions
+<ul>
+  <li>Introduces <strong>the first real-time rendering approach</strong> for complex geometry with neural SDFs.</li>
+  <li>A neural SDF representation <strong>capable of capturing multiple LODs</strong>, and reconstructing 3D geometry with state-of-the-art quality.</li>
+  <li>The proposed architecture can represent 3D shapes in a <strong>compressed format</strong> with higher visual fidelity than traditional methods.</li>
+  <li>This method <strong>generalizes across different geometries</strong> even from a single learned example.</li>
+</ul>
 
-- Introduces **the first real-time rendering approach** for complex geometry with neural SDFs.
-- A neural SDF representation **capable of capturing multiple LODs**, and reconstructing 3D geometry with state-of-the-art quality.
-- The proposed architecture can represent 3D shapes in a **compressed format** with higher visual fidelity than traditional methods.
-- This method **generalizes across different geometries** even from a single learned example.
+<hr />
 
----
+<h1 id="tldr">TL;DR</h1>
 
-# TL;DR
+<p>This paper proposes a method to accelerate SDF value calculation crucial for real-time applications adopting neural SDFs as their geometry representation. The framework introduced in this paper efficiently reduces unnecessary computations by adopting the idea from classic computer graphics algorithm - marching cube. Moreover, this work shows that such representation is memory efficient while retaining high geometric fidelity.</p>
 
-This paper proposes a method to accelerate SDF value calculation crucial for real-time applications adopting neural SDFs as their geometry representation. The framework introduced in this paper efficiently reduces unnecessary computations by adopting the idea from classic computer graphics algorithm - marching cube. Moreover, this work shows that such representation is memory efficient while retaining high geometric fidelity.
+<h1 id="method">Method</h1>
 
-# Method
+<p>The goal of this paper is to design <strong>a representation which reconstructs detailed geometry and enables continuous level of detail</strong>  (i.e. <em>interpolation</em> of discrete LODs) thus eventually <strong>make it possible to render shapes represented as neural SDFs in real time.</strong></p>
 
-The goal of this paper is to design **a representation which reconstructs detailed geometry and enables continuous level of detail**  (i.e. *interpolation* of discrete LODs) thus eventually **make it possible to render shapes represented as neural SDFs in real time.**
-
-## Neural Signed Distance Functions (SDFs)
+<h2 id="neural-signed-distance-functions-sdfs">Neural Signed Distance Functions (SDFs)</h2>
 
 <center>
-    <img class="img-fluid" src="/assets/post-images/NeuralGeometricLOD/fig1.jpg">
+    <img class="img-fluid" src="/assets/post-images/NeuralGeometricLOD/fig1.jpg" />
 </center>
-<span class="caption text-muted">Figure 1. <b>Signed distance function parametrized by weights of neural network</b></span>
+<p><span class="caption text-muted">Figure 1. <b>Signed distance function parametrized by weights of neural network</b></span></p>
 
-In mathematics and its applications in computer graphics, SDFs are functions $f: \mathbb{R}^{3} \to \mathbb{R}$ where $d = f(\textbf{x})$ is the shortest *signed* distance from a point $\textbf{x}$ to a surface $\mathcal{S} = \partial \mathcal{M}$ of a volume $\mathcal{M} \subset \mathbb{R}^{3}$, where the sign indicates whether $\textbf{x}$ is inside or outside of $\mathcal{M}$. That being said, we now know that $\mathcal{S}$ is implicitly represented as the zero level-set of $f$:
+<p>In mathematics and its applications in computer graphics, SDFs are functions $f: \mathbb{R}^{3} \to \mathbb{R}$ where $d = f(\textbf{x})$ is the shortest <em>signed</em> distance from a point $\textbf{x}$ to a surface $\mathcal{S} = \partial \mathcal{M}$ of a volume $\mathcal{M} \subset \mathbb{R}^{3}$, where the sign indicates whether $\textbf{x}$ is inside or outside of $\mathcal{M}$. That being said, we now know that $\mathcal{S}$ is implicitly represented as the zero level-set of $f$:</p>
 
-$$\mathcal{S} = \{ \textbf{x} \in \mathbb{R}^{3} \,\, \vert \,\, f(\textbf{x}) = 0\}.$$
+<p>$$\mathcal{S} = { \textbf{x} \in \mathbb{R}^{3} \,\, \vert \,\, f(\textbf{x}) = 0}.$$</p>
 
-Recent approaches in computer vision suggest to parametrize and approximate SDFs using neural networks - neural SDFs. Then a SDF $f_{\theta}$, parametrized by parameters $\theta$ of neural network retrieves the signed distance for a give point $\textbf{x} \in \mathbb{R}^{3}$ by computing $f_{\theta}(\textbf{x}) = \hat{d}$.
+<p>Recent approaches in computer vision suggest to parametrize and approximate SDFs using neural networks - neural SDFs. Then a SDF $f_{\theta}$, parametrized by parameters $\theta$ of neural network retrieves the signed distance for a give point $\textbf{x} \in \mathbb{R}^{3}$ by computing $f_{\theta}(\textbf{x}) = \hat{d}$.</p>
 
-Given a ground truth (but actually samples) SDF we can optimize such network by minimizing the loss $J(\theta) = \mathbb{E}_{\textbf{x}, d} \mathcal{L}\big(f(\textbf{x}), d\big)$, where $d$ is the ground truth signed distance at $\textbf{x}$ and $\mathcal{L}$ is some distance metric such as $L^{2}$-distance. Some works introduced additional input shape feature vector $\textbf{z} \in \mathbb{R}^{m}$ to generalize the network for various shapes with ease.
+<p>Given a ground truth (but actually samples) SDF we can optimize such network by minimizing the loss $J(\theta) = \mathbb{E}_{\textbf{x}, d} \mathcal{L}\big(f(\textbf{x}), d\big)$, where $d$ is the ground truth signed distance at $\textbf{x}$ and $\mathcal{L}$ is some distance metric such as $L^{2}$-distance. Some works introduced additional input shape feature vector $\textbf{z} \in \mathbb{R}^{m}$ to generalize the network for various shapes with ease.</p>
 
-One issue with this representation is that **rendering SDF requires lots of time and computations**. Sphere tracing is one of the widely used algorithms that directly renders neural SDFs which iteratively test the signed distance at points in space along a ray emitted from a pixel. However, **hundreds of SDF evaluations should be done for the algorithm to converge for a single pixel**. If the network approximating SDF is large, such queries can be heavy burden slowing down the rendering pipeline.
+<p>One issue with this representation is that <strong>rendering SDF requires lots of time and computations</strong>. Sphere tracing is one of the widely used algorithms that directly renders neural SDFs which iteratively test the signed distance at points in space along a ray emitted from a pixel. However, <strong>hundreds of SDF evaluations should be done for the algorithm to converge for a single pixel</strong>. If the network approximating SDF is large, such queries can be heavy burden slowing down the rendering pipeline.</p>
 
-Moreover, fixed-size networks are unable to adapt to shapes having different geometric LODs, often fail to reproduce highly detailed geometry or spend too much budget on parts where visual details are unnecessary.
+<p>Moreover, fixed-size networks are unable to adapt to shapes having different geometric LODs, often fail to reproduce highly detailed geometry or spend too much budget on parts where visual details are unnecessary.</p>
 
-## Neural Geometric Levels of Detail
+<h2 id="neural-geometric-levels-of-detail">Neural Geometric Levels of Detail</h2>
 <center>
-    <img class="img-fluid" src="/assets/post-images/NeuralGeometricLOD/fig2.png">
+    <img class="img-fluid" src="/assets/post-images/NeuralGeometricLOD/fig2.png" />
 </center>
-<span class="caption text-muted">Figure 2. <b>Levels of Detail</b>. The representation introduced in this work pools features from multiple scales to adaptively reconstruct high-fiedlity geometry and further interpolates level of detail (LOD) which is traditionally considered in discretized manner.</span>
+<p><span class="caption text-muted">Figure 2. <b>Levels of Detail</b>. The representation introduced in this work pools features from multiple scales to adaptively reconstruct high-fiedlity geometry and further interpolates level of detail (LOD) which is traditionally considered in discretized manner.</span></p>
 
-### Framework
+<h3 id="framework">Framework</h3>
 
-Underlying idea remains the same. SDFs are represented as a neural network and it takes a learned feature encoding a shape along with the coordinate of a query point.
+<p>Underlying idea remains the same. SDFs are represented as a neural network and it takes a learned feature encoding a shape along with the coordinate of a query point.</p>
 
-<center>
-    <img class="img-fluid" src="/assets/post-images/NeuralGeometricLOD/fig3.jpg">
-</center>
+<centner>
+    <img class="img-fluid" src="/assets/post-images/NeuralGeometricLOD/fig3.jpg" />
+&lt;/center&gt;
 <span class="caption text-muted">Figure 3. <b>Architecture Overview</b>.</span>
 
 Instead of encoding shapes using a single feature vector $\textbf{z}$ as DeepSDF did with auto-decoder architecture, this work uses a feature volume containing a *collection* of feature vectors, denoted as $\mathcal{Z}$. These feature vectors are stored in a **sparse voxel octree (SVO)** spanning the bounding volume $\mathcal{B} = [-1, 1]^{3}$. Each voxel $V$ in the SVO holds a learnable feature vector $\textbf{z}_{V}^{(j)} \in \mathcal{Z}$ at each of its eight corners (indexed by $j$), which are shared if neighbour voxels exist. Voxels are allocated only if the voxel $V$ contains a surface, and this is the reason why the tree becomes sparse.
@@ -66,7 +64,7 @@ Instead of encoding shapes using a single feature vector $\textbf{z}$ as DeepSDF
 
 Therefore, **to compute an SDF for a query point $\textbf{x} \in \mathbb{R}^{3}$ at the desired LOD $L$**, we traverse the tree up to level $L$ to find all voxels $V_{1:L} = \{ V_{1}, \dots, V_{L} \}$ containing $\textbf{x}$. For each level $\ell \in \{ 1, \dots, L\}$, we compute a per-voxel shape vector $\psi(\textbf{x}; \ell, \mathcal{Z})$ by trilinearly interpolating the corner features of the voxels at $\textbf{x}$. Features from different levels are then aggregated to produce the final latent code $\textbf{z} (\textbf{x}; L, \mathcal{Z}) = \sum_{\ell =1}^{L} \psi (\textbf{x}; \ell, \mathcal{Z})$. This latent code is passed to the MLP with LOD-specific parameters $\theta_{L}$ to determine the SDF at a query point. Concretely,
 
-$$\hat{d_L} = f_{\theta_{L}} ([\textbf{x}, \textbf{z}(\textbf{x}; L, \mathcal{Z})]),$$
+\$\$\hat{d_L} = f_{\theta_{L}} ([\textbf{x}, \textbf{z}(\textbf{x}; L, \mathcal{Z})]),\$\$
 
 where $[\cdot, \cdot]$ denotes concatenation. **By summing up all the feature vectors from lower levels to the higher level representing desired LOD, gradients can be propagated through not only the feature vector from that exact level, but also through ones representing lower level of details.** 
 
@@ -76,7 +74,7 @@ The SVO implicitly represents the overall geometry by storing the feature vector
 
 Another advantage we can expect from this representation is that we can smoothly interpolate different LODs for higher reconstruction quality. Let's call the result of such interpolation *continuous* LOD $\widetilde{L} \geq 1$ to distinguish this from well-known, *discrete* LOD. Then, one can blend between different LODs implied by different levels of SVO by linearly interpolating the corresponding predicted distances:
 
-$$ \hat{d}\_{\widetilde{L}} = (1 - \alpha) \hat{d}\_{L^{\*}} + \alpha \hat{d}\_{L^{\*}+1}, $$
+\$\$ \hat{d}\_{\widetilde{L}} = (1 - \alpha) \hat{d}\_{L^{\*}} + \alpha \hat{d}\_{L^{\*}+1}, \$\$
 
 where $L^{*} = \lfloor \widetilde{L} \rfloor$ and $\alpha = \widetilde{L} - \lfloor \widetilde{L} \rfloor$ is the fractional part, allowing us to smoothly transition between LODs.
 
@@ -84,7 +82,7 @@ where $L^{*} = \lfloor \widetilde{L} \rfloor$ and $\alpha = \widetilde{L} - \lfl
 
 One thing to keep in mind is that, although differ in level of details, each discrete level $L$ of the SVO should represent valid geometry. To this end, the final loss is obtained by summing individual losses computed at each level:
 
-$$J(\theta, \mathcal{Z}) = \mathbb{E}\_{\textbf{x}, d} \sum\_{L=1}^{L\_{\text{max}}} \big\Vert f\_{\theta\_{L}} \big([\textbf{x}, \textbf{z} (\textbf{x}; L, \mathcal{Z})]\big) - d\big\Vert^{2}.$$
+\$\$J(\theta, \mathcal{Z}) = \mathbb{E}\_{\textbf{x}, d} \sum\_{L=1}^{L\_{\text{max}}} \big\Vert f\_{\theta\_{L}} \big([\textbf{x}, \textbf{z} (\textbf{x}; L, \mathcal{Z})]\big) - d\big\Vert^{2}.\$\$
 
 This loss function is then stochastically optimized with repsect to both parameters of neural networks $\theta_{1:L_{\text{max}}}$ and set of feature vectors $\mathcal{Z}$. The expectation is estimated with importance sampling for the points $\textbf{x} \in \mathcal{B}$. The samples are from a mixture of three distributions:
 
@@ -100,13 +98,11 @@ Similar to other studies on neural SDFs, *sphere tracing* is used to render the 
 
 Trivially, as the representation is changed, the way of evaluating SDFs at various locations in space should change as well. One good thing is that, since we have already allocated voxels only to where the surface lie, we can save significant amount of time by first **perform a ray-SVO intersection every frame to retrieve every voxel $V$ at each resolution $\ell$ that intersects with the ray.**
 
-More specifically, let's say $\textbf{r}(t) = \textbf{x}\_{0} + t \textbf{d}, \,\,t > 0$ is a ray with origin $\textbf{x}\_{0} \in \mathbb{R}^{3}$ and direction $\textbf{d} \in \mathbb{R}^{3}$. Then we let $\mathcal{V}\_{\ell}(\textbf{r})$ denote the depth-ordered set of intersected voxels by $\textbf{r}$ at level $\ell$. Each voxel in $\mathcal{V}\_{\ell} (\textbf{r})$ contains the intersected ray index, voxel position, parent voxel, and pointers to the eight corner feature vectors $\textbf{z}_{V}^{(j)}$. Pointers are retrieved instead of directly acquiring feature vectors for memory efficiency.
+More specifically, let's say $\textbf{r}(t) = \textbf{x}\_{0} + t \textbf{d}, \,\,t &gt; 0$ is a ray with origin $\textbf{x}\_{0} \in \mathbb{R}^{3}$ and direction $\textbf{d} \in \mathbb{R}^{3}$. Then we let $\mathcal{V}\_{\ell}(\textbf{r})$ denote the depth-ordered set of intersected voxels by $\textbf{r}$ at level $\ell$. Each voxel in $\mathcal{V}\_{\ell} (\textbf{r})$ contains the intersected ray index, voxel position, parent voxel, and pointers to the eight corner feature vectors $\textbf{z}_{V}^{(j)}$. Pointers are retrieved instead of directly acquiring feature vectors for memory efficiency.
 
 ### Adaptive Ray Stepping
 
-<center>
-    <img class="img-fluid" src="/assets/post-images/NeuralGeometricLOD/fig4.png">
-</center>
+<img class="img-fluid" src="/assets/post-images/NeuralGeometricLOD/fig4.png" />
 <span class="caption text-muted">Figure 4. <b>Adaptive Ray Steps</b>.</span>
 
 For a given ray in a sphere trace iteration $k$, we perform a ray-AABB intersection against the voxels in the target LOD level $L$ to retrieve the first voxel $V\_{L}^{\*} \in \mathcal{V}\_{L}(\textbf{r})$ that hits. If $\textbf{x}\_{k} \notin V\_{L}^{\*}$, then we advance $\textbf{x}$ to the ray-AABB intersection point. If $\textbf{x}\_{k} \in V\_{L}^{\*}$, we query the feature volume. Then all parent voxels $V\_{\ell}^{\*}$ corresponding to the coarser levels $\ell \in \{ 1, \dots, L-1\}$ are retrieved, forming a collection of voxels $V_{1:L}^{*}$. After identifying all such voxels along with feature vectors located at eight corners of them, we perform bilinear interpolation at each voxel representing different LOD, eventually sum up all such interpolated features to obtain final feature vector that will be passed to the shallow MLP for LOD level $L$.
@@ -124,18 +120,14 @@ This novel ray-octree intersection algorithm makes use of a breadth-first traver
 
 The algorithm below is the pseudocode of the novel intersection test proposed in this paper.
 
-<center>
-    <img class="img-fluid" src="/assets/post-images/NeuralGeometricLOD/fig5.png">
-</center>
+<img class="img-fluid" src="/assets/post-images/NeuralGeometricLOD/fig5.png" />
 <span class="caption text-muted">Figure 5. <b>Pseudocode of efficient sparse ray-octree intersection algorithm</b>.</span>
 
 The algorithm first generates a set of rays $\mathcal{R}$ (indexed by $i$) and stores them in an array $\textbf{N}^{(0)}$ of ray-voxel pairs, which are proposals for ray-voxel intersections. Each $\textbf{N}^{(0)}_{i} \in \textbf{N}^{(0)}$ is initialized with the root node, the octree's top-level voxel.
 
 Next, we iterate over the octree levels $\ell$. In each iteration, we look for the ray-voxel pairs that result in intersections. This is done in a subroutine called *DECIDE* and it returns *a list of decisions* $\textbf{D}$ with $\textbf{D}\_{j}=1$ if the ray intersects the voxel and $\textbf{D}\_{j} = 0$ otherwise.
 
-<center>
-    <img class="img-fluid" src="/assets/post-images/NeuralGeometricLOD/fig6.png">
-</center>
+<img class="img-fluid" src="/assets/post-images/NeuralGeometricLOD/fig6.png" />
 <span class="caption text-muted">Figure 6. <b>Pseudocode of subroutine <i>DECIDE</i></b>.</span>
 
 The procedure *DECIDE* finds the ray-voxel pairs that intersects. This procedure runs in parallel over (threads) $t$. For each thread $t$, we fetch the ray and voxel indices (each denoted $i$ and $j$). 
@@ -148,21 +140,17 @@ The result of computation done in each thread is then collected and returned to 
 
 After this, we call another subroutine *EXCLUSIVESUM* to compute the exclusive sum $\textbf{S}$ of list $\textbf{D}$, and the return value $\textbf{S}$ is used in the following computations.
 
-$$ \textbf{S}_{i} = \begin{cases} 0 & \text{if} \,\, i = 0, \\
-\sum_{j=0}^{i-1} \textbf{D}_{j} & \text{otherwise.}\end{cases} $$
+$$ \textbf{S}_{i} = \begin{cases} 0 &amp; \text{if} \,\, i = 0, \\
+\sum_{j=0}^{i-1} \textbf{D}_{j} &amp; \text{otherwise.}\end{cases} $$
 
 Specifically, the exclusive sum of $\textbf{D}$ is defined as above. As one shall notice, this is nothing but a simple calculation that adds elements of a given vector from the beginning until reaching index $i$. What this means in this context is that, as one will see later in *SUBDIVIDE* and *COMPACTIFY*, **it creates rooms for indices of voxels by computing the running-sum throughout the list $\textbf{D}$ containing the number of voxels that will undergo intersection test in the following iteration step.** Below figure is a visualization of "making room" at level $\ell$. While this seems inherently serial, there are multiple studies that treat this problem as a series of parallel reductions.
 
-<center>
-    <img class="img-fluid" src="/assets/post-images/NeuralGeometricLOD/fig8.png">
-</center>
-<span class="caption text-muted">Figure 7. <b>Meaning of exclusive sum for identifying & storing ray-voxel pairs for the next level</b>.</span>
+<img class="img-fluid" src="/assets/post-images/NeuralGeometricLOD/fig8.png" />
+<span class="caption text-muted">Figure 7. <b>Meaning of exclusive sum for identifying &amp; storing ray-voxel pairs for the next level</b>.</span>
 
 At this point, if we have not yet reached the target LOD level $L$, we then call *SUBDIVIDE* to populate the next list $\textbf{N}^{(\ell+1)}$ with child voxels (i.e. voxels of higher geometric details) of those $\textbf{N}_{j}^{(\ell)}$ that the ray intersects and continue the iteration. 
 
-<center>
-    <img class="img-fluid" src="/assets/post-images/NeuralGeometricLOD/fig9.png">
-</center>
+<img class="img-fluid" src="/assets/post-images/NeuralGeometricLOD/fig9.png" />
 <span class="caption text-muted">Figure 8. <b>Pseudocode of subroutine <i>SUBDIVIDE</i></b>.</span>
 
 The *SUBDIVIDE* subroutine, whose pseudocode is shown above, populates the next list $\textbf{N}^{(\ell+1)}$ by subdividing out $\textbf{N}^{(\ell)}$. Similar to *DECIDE*, this routine can also be run across multiple threads in parallel.
@@ -171,9 +159,7 @@ When $\textbf{D}\_{t} \neq 0$ (i.e. voxel $\mathcal{V}\_{t}^{(\ell)}$ was hit), 
 
 Otherwise, another subroutine *COMPACTIFY* is executed to remove all $\textbf{N}_{j}^{(\ell)}$ that do not result in an intersection.
 
-<center>
-    <img class="img-fluid" src="/assets/post-images/NeuralGeometricLOD/fig10.png">
-</center>
+<img class="img-fluid" src="/assets/post-images/NeuralGeometricLOD/fig10.png" />
 <span class="caption text-muted">Figure 9. <b>Pseudocode of subroutine <i>COMPACTIFY</i></b>.</span>
 
 This subroutine, executed concurrently across threads, removes all ray-voxel pairs that do not result in an intersection. 
@@ -190,21 +176,15 @@ The LOD $\widetilde{L}$ for rendering is chosen with a depth heuristic in a way 
 
 🤔 **NOTE: This post presents only qualitative results from the paper. For details such as quantitative comparisons, please refer to the original paper.** 🤔
 
-When compared to the previous state-of-the-art methods such as DeepSDF, FFN, SIREN, or Neural Implicits, **the newly proposed method outperforms them in terms of reconstruction quality, quantitative evaluations, and most importantly, rendering time.** Thanks to the new representation which requires us only a tiny MLP for forward propagation, this work presents the real time rendering of neural SDF for the first time. Furthermore, **this architecture generalizes to multiple shapes**, and **can simplify geometry maintaining plausible quality** while classical decimation-based algorithms suffer from artifacts.
+When compared to the previous state-of-the-art methods such as DeepSDF, FFN, SIREN, or Neural Implicits, **the newly proposed method outperforms them in terms of reconstruction quality, quantitative evaluations, and most importantly, rendering time.** Thanks to the new representation which requires us only a tiny MLP for forward propagation, this work presents the real time rendering of neural SDF for the first time. Furthermore, **this architecture generalizes to multiple shapes**, and **can simplify geometry maintaining plausible quality** while classical decimation-based algorithms suffer from artifacts. 
 
-<center>
-    <img class="img-fluid" src="/assets/post-images/NeuralGeometricLOD/fig11.png">
-</center>
+<img class="img-fluid" src="/assets/post-images/NeuralGeometricLOD/fig11.png" />
 <span class="caption text-muted">Figure 10. <b>Comparison on TurboSquid</b>.</span>
 
-<center>
-    <img class="img-fluid" src="/assets/post-images/NeuralGeometricLOD/fig12.png">
-</center>
+<img class="img-fluid" src="/assets/post-images/NeuralGeometricLOD/fig12.png" />
 <span class="caption text-muted">Figure 11. <b>Qualitative Result on Analytic SDF Reconstructions</b>.</span>
 
-<center>
-    <img class="img-fluid" src="/assets/post-images/NeuralGeometricLOD/fig13.png">
-</center>
+<img class="img-fluid" src="/assets/post-images/NeuralGeometricLOD/fig13.png" />
 <span class="caption text-muted">Figure 12. <b>Comparison with Mesh Decimation (Edge Collapse)</b>.</span>
 
 ![](https://nv-tlabs.github.io/nglod/assets/demo.mp4)
@@ -219,3 +199,5 @@ When compared to the previous state-of-the-art methods such as DeepSDF, FFN, SIR
 
 - Neural Geometric LOD, a representation for implicit 3D shapes that achieves state-of-the-art geometry reconstruction quality.
 - Separate neural scene representation (SVO) and feature extractors (small MLPs) achieving both computation- and memory-efficient evaluation of SDFs thereby enabling the first real-time rendering of neural SDFs.
+</centner>
+:ET
