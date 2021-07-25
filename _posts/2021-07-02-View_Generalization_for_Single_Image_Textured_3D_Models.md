@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Summary of 'View Generalization for Single Image Textured 3D Models'"
-# use_math: true
+subtitle: "View Generalization for Single Image Textured 3D Models (CVPR 2021)"
 background: '/assets/post-images/ViewGeneralizationSingleImage/fig2.png'
 ---
 

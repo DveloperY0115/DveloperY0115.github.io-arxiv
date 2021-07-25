@@ -1,7 +1,7 @@
 ---
 layout: post
-title: "Summary of 'Neural-Pull: Learning Signed Distance Functions from Point Clouds by Learning to Pull Space onto Surfaces'"
-# use_math: true
+title: "Summary of 'Neural-Pull'"
+subtitle: "Neural-Pull: Learning Signed Distance Functions from Point Clouds by Learning to Pull Space onto Surfaces"
 background: '/assets/post-images/NeuralPull/NeuralPull_fig1.png'
 ---
 

@@ -1,6 +1,7 @@
 ---
 layout: post
-title: "Summary of 'Neural Geometric Level of Detail: Real-time Rendering with Implicit 3D Shapes (CVPR 2021, Oral)'"
+title: "Summary of 'Neural Geometric Level of Detail'"
+subtitle: "Neural Geometric Level of Detail: Real-time Rendering with Implicit 3D Shapes (CVPR 2021, Oral)"
 background: '/assets/post-images/NeuralGeometricLOD/background.jpg'
 ---
 

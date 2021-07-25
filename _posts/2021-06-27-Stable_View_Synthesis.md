@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Summary of 'Stable View Synthesis'"
-# use_math: true
+subtitle: "Stable View Synthesis (CVPR 2021)"
 background: '/assets/post-images/SVS/SVS_method_overview.png'
 ---
 

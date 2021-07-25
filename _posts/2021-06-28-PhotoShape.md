@@ -1,7 +1,7 @@
 ---
 layout: post
-title: "Summary of 'PhotoShape: Photorealistic Materials for Large-Scale Shape Collections'"
-# use_math: true
+title: "Summary of 'PhotoShape'"
+subtitle: "PhotoShape: Photorealistic Materials for Large-Scale Shape Collections"
 background: '/assets/post-images/PhotoShape/PhotoShape_PhotoShapes.png'
 ---
 
