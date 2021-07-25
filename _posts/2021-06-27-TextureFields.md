@@ -236,7 +236,9 @@ Consider three different metrics in **image space**.
 
 The purpose of this experiment is to check the upper bound of the reconstruction quality by overfitting the Texture Field with training data. At the same time, voxel-based approach is used to generate representation for comparison. **→ Well, is this really good representation...?**
 
-<img class="img-fluid" src="/assets/post-images/TextureFields/texturefields_repr_power.png">
+<center>
+    <img class="img-fluid" src="/assets/post-images/TextureFields/texturefields_repr_power.png">
+</center>
 <span class="caption text-muted">Figure 9. <b>Experiment on representation power of Texture Fields</b></span>
 
 ## Experiment 2. Single Image Texture Reconstruction
