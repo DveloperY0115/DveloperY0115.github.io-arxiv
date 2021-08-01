@@ -1,0 +1,272 @@
+I"�h<h1 id="introduction">Introduction</h1>
+
+<p>This post is written to serve as the minimal starting point, including basic concepts and ready-to-run code snippets, for you when integrating Weights &amp; Biases (I will call it W&amp;B after all) into your machine learning workflow.</p>
+
+<p>As you can notice from the word “minimal”, this post is just a very condensed summary covering only a small portion of the entire W&amp;B documentation. Therefore, I highly encourage you to check out <a href="https://docs.wandb.ai/">the full documentation</a> to learn more after finishing this.</p>
+
+<p>In a nutshell, W&amp;B is <strong>a tool for experiment tracking, dataset versioning, and model management</strong> which we, ML researchers / engineers, do twenty-four-seven. If you are already familiar with TensorBoard, I bet you can easily get most of the contents and start writing codes immediately. Even if you aren’t, W&amp;B is quite straightforward to use yet incredibly powerful, so I strongly recommend you to take some time and go over this material (it won’t take that long!).</p>
+
+<p>For explanation, and to give you a sense of adopting W&amp;B in real-world ML projects, I will use my implementation of <em>PointNet (PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation, Charles R. Qi et al., CVPR 2017)</em> as an exempler. Note that all code snippets in this post are from my <a href="https://github.com/DveloperY0115/torch-pointnet"><em>torch-pointnet</em> repository</a>.</p>
+
+<h1 id="initializing-wb">Initializing W&amp;B</h1>
+
+<h2 id="sign-up--sign-in">Sign Up &amp; Sign In</h2>
+
+<p>Don’t have an account for Weights &amp; Biases? You can easily make one, or directly link your Github account to it.</p>
+
+<p>After signing up, you need to install <em>wandb</em> module to your Python environment. Everything we wil do after all assumes that you’ve installed this module successfully. And in fact, this module is all you need. Installation is surprisingly simple - just run the following command in your shell.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="syntax"><code>pip <span class="nb">install </span>wandb
+wandb login
+<span class="sb">```</span>
+
+<span class="c">## Starting a New Run</span>
+
+If you have experience with TensorBoard, you would remember that we need to initialize a <span class="k">*</span>SummaryWriter<span class="k">*</span> object which is <span class="k">then </span>used <span class="k">for </span>logging throughout the rest of your program. W&amp;B has no difference, but is more elegant <span class="k">in </span>some sense compared to TensorBoard. Running a single line of code will <span class="k">do </span>everything <span class="k">for </span>us.
+
+<span class="sb">```</span>python
+<span class="c"># imports</span>
+<span class="c"># import torch, numpy, etc</span>
+import wandb
+<span class="c"># ...</span>
+
+<span class="c"># def main():</span>
+<span class="c"># bla bla bla</span>
+
+<span class="c"># and many other functions</span>
+<span class="c"># bla bla bla</span>
+
+<span class="k">if </span>__name__ <span class="o">==</span> <span class="s2">"__main__"</span>:
+	
+	<span class="c"># initialize W&amp;B</span>
+	wandb.init<span class="o">(</span><span class="nv">project</span><span class="o">=</span><span class="s2">"torch-pointnet"</span><span class="o">)</span>
+
+	<span class="c"># run main function</span>
+	main<span class="o">()</span>
+<span class="sb">```</span>
+
+The above code snippet shows the overall structure of my <span class="k">*</span>train.py<span class="k">*</span> file, which defines various control flows involving the training of PointNet. As you can see, <span class="k">*</span>wandb<span class="k">*</span> is initialized before running the main <span class="k">function </span>which contains a number of <span class="k">*</span>wandb.log<span class="k">*</span> <span class="o">(</span>will be explained soon<span class="o">)</span> calls <span class="k">for </span>tracking important quantities <span class="o">(</span>loss, accuracy, etc<span class="o">)</span> during the experiment. 
+
+<span class="c"># Logging &amp; Model Tracking</span>
+
+<span class="c">## Log (Almost) Everything You Want</span>
+
+<span class="k">*</span>wandb.log<span class="k">*</span> is a <span class="k">function </span>that we use <span class="k">for </span>logging. You can log almost everything you can imagine <span class="k">in </span>various ML workflows - numbers, images, audio, video, HTML, Histogram, 3D data, and much more. You can check the supported types <span class="o">[</span>here]<span class="o">(</span>https://docs.wandb.ai/guides/track/log<span class="o">)</span><span class="nb">.</span>
+
+In my <span class="k">case</span>, I use this <span class="k">for </span>tracking:
+
+- Training loss
+- Test loss
+- Test accuracy
+- Visualization of <span class="nb">test </span>result <span class="o">(</span><span class="k">for </span>qualitative analysis<span class="p">)</span>
+
+For instance, <span class="k">in </span>the <span class="k">function</span> <span class="k">*</span>train_one_epoch<span class="k">*</span> that carries out optimization <span class="k">for </span>a single epoch, I simply write:
+
+<span class="sb">```</span>python
+def train_one_epoch<span class="o">(</span>network, optimizer, scheduler, device, train_loader, epoch<span class="o">)</span>:
+	
+	<span class="c"># forward propagation</span>
+	<span class="c"># bla bla bla</span>
+
+	<span class="c"># back propagation</span>
+	<span class="c"># bla bla bla</span>
+
+	<span class="c"># update</span>
+	<span class="c"># bla bla bla</span>
+
+	<span class="c"># log data</span>
+	wandb.log<span class="o">({</span><span class="s2">"Train/Loss"</span>: avg_loss<span class="o">}</span>, <span class="nv">step</span><span class="o">=</span>epoch<span class="o">)</span>
+<span class="sb">```</span>
+
+The quantity of interest is packed into a Python dictionary as a <span class="k">*</span><span class="o">(</span>key, value<span class="o">)</span><span class="k">*</span> pair where <span class="k">**</span>the key becomes the title of a plot<span class="k">**</span>, and <span class="k">**</span>the value represents the actual metric<span class="k">**</span> to be recorded. Notice how simply the logging works. 
+
+Of course, I can put as many kinds of data into a dictionary and log them at once.
+
+<span class="sb">```</span>python
+def run_test<span class="o">(</span>network, device, test_loader, epoch<span class="o">)</span>:
+	
+	<span class="c"># forward propagation</span>
+
+	<span class="c"># compute metrics used for testing</span>
+
+	<span class="c"># log data</span>
+	wandb.log<span class="o">(</span>
+        <span class="o">{</span><span class="s2">"Test/Loss"</span>: loss, <span class="s2">"Test/Accuracy"</span>: accuracy, <span class="s2">"Test/Result"</span>: wandb.Image<span class="o">(</span>fig<span class="o">)}</span>, <span class="nv">step</span><span class="o">=</span>epoch
+    <span class="o">)</span>
+<span class="sb">```</span>
+
+<span class="o">(</span><span class="k">*</span>Disclaimer: Logging image data isn<span class="s1">'t working as intended at the time I write this post. I'</span>ll try to resolve this issue ASAP.<span class="o">)</span><span class="k">*</span>
+
+As a result, you can see this beautiful plot of training loss decreasing nicely over time. What makes this even cooler is that <span class="k">**</span>you can check the results <span class="k">in </span>real <span class="nb">time </span>at the control panel through your web browser<span class="k">**</span> <span class="o">(</span>both PC and mobile<span class="o">)</span> without logging into your remote machine.
+
+&lt;center&gt;
+    &lt;img <span class="nv">class</span><span class="o">=</span><span class="s2">"img-fluid"</span> <span class="nv">src</span><span class="o">=</span><span class="s2">"/assets/post-images/Introduction_to_W&amp;B/fig1.png"</span><span class="o">&gt;</span>
+&lt;/center&gt;
+
+<span class="c">## Anatomy of Your Model with W&amp;B</span>
+
+Having problem with exploding <span class="o">(</span>or vanishing<span class="o">)</span> gradients and don<span class="s1">'t know which part~~(s)~~ of your model is ~~(are)~~ in trouble? Using W&amp;B, you can easily diagnose the problem. To make W&amp;B pay attention to the internal of your model, simply wrap the model after initializing it.
+
+~~~python
+		
+def main():
+		# check GPU
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+		
+		# model &amp; optimizer, schedulers
+    network = PointNetCls().to(device)
+
+    # make W&amp;B track model'</span>s gradient and topology
+    wandb.watch<span class="o">(</span>network, <span class="nv">log_freq</span><span class="o">=</span>100, <span class="nv">log_graph</span><span class="o">=</span>True<span class="o">)</span>
+
+		<span class="c"># and the rest of main..</span>
+</code></pre></div></div>
+
+<p>W&amp;B gives you the freedom of choosing which aspects of your network are going to be tracked. In the snippet above, I decided to record the gradients at all layers of my model every 100 steps and track the computational graph formed during training.</p>
+
+<p>Just like logged metrics, this information will show up in your project dashboard.</p>
+
+<center>
+    <img class="img-fluid" src="/assets/post-images/Introduction_to_W&amp;B/fig2.png" />
+</center>
+
+<h1 id="check-system-utilization">Check System Utilization</h1>
+
+<p>You might want to check whether you’re pushing your machine to its limit. Thankfully, W&amp;B automatically tracks various statistics of the system throughout a session - GPU memory usage, power consumption, number of CPU threads in use, etc.</p>
+
+<center>
+    <img class="img-fluid" src="/assets/post-images/Introduction_to_W&amp;B/fig3.png" />
+</center>
+
+<h1 id="hyperparameter-tuning-with-sweep">Hyperparameter Tuning with Sweep</h1>
+
+<p>Personally, I think this is <strong>the coolest feature of W&amp;B</strong>. W&amp;B provides a powerful yet easy-to-use tool for hyperparameters tuning with fancy visualizations that helps users intuitively compare different combinations of them.</p>
+
+<p>In this example, although my model has only few hyperparameters associated with its structure and training, I’ll try to find the sweet spot for learning rate and batch size.</p>
+
+<p>In order to find the optimal combination of hyperparameters, we need to tell W&amp;B,</p>
+
+<ul>
+  <li><strong>which hyperparameters to adjust</strong></li>
+  <li><strong>what are the possible values (i.e. explorable space) for such hyperparameters</strong></li>
+  <li><strong>which metric we want to opimize further through hyperparameter tuning</strong></li>
+</ul>
+
+<h2 id="tell-wb-a-list-of-adjustable-variables">Tell W&amp;B a list of adjustable variables</h2>
+
+<p>In my case, I personally prefer using <em>argparse</em> for tweak variables for training. As you can see at the beginning of my <em>train.py,</em> I store the set of arguments in variable <em>args</em>.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="syntax"><code><span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="p">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s">"Parsing argument"</span><span class="p">)</span>
+<span class="n">parser</span><span class="p">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">"--beta1"</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">"Beta 1 of Adam optimizer"</span><span class="p">)</span>
+<span class="n">parser</span><span class="p">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">"--beta2"</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">0.999</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">"Beta 2 of Adam optimizer"</span><span class="p">)</span>
+<span class="n">parser</span><span class="p">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">"--lr"</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">"Learning rate for optimizer"</span><span class="p">)</span>
+<span class="n">parser</span><span class="p">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">"--step_size"</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">"Step size of StepLR"</span><span class="p">)</span>
+<span class="n">parser</span><span class="p">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">"--gamma"</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">0.99</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">"Gamma of StepLR"</span><span class="p">)</span>
+<span class="n">parser</span><span class="p">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">"--num_epoch"</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">"Number of epochs"</span><span class="p">)</span>
+<span class="n">parser</span><span class="p">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">"--num_iter"</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">"Number of iteration in one epoch"</span><span class="p">)</span>
+<span class="n">parser</span><span class="p">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">"--batch_size"</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">"Size of a batch"</span><span class="p">)</span>
+<span class="n">parser</span><span class="p">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">"--num_worker"</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">"Number of workers for data loader"</span><span class="p">)</span>
+<span class="n">parser</span><span class="p">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">"--out_dir"</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s">"out"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">"Name of the output directory"</span><span class="p">)</span>
+<span class="n">parser</span><span class="p">.</span><span class="n">add_argument</span><span class="p">(</span>
+    <span class="s">"--save_period"</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">"Number of epochs between checkpoints"</span>
+<span class="p">)</span>
+<span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="p">.</span><span class="n">parse_args</span><span class="p">()</span>
+</code></pre></div></div>
+
+<p>Then I need to inform W&amp;B what the controllable variables are. All I need to do this is simply passing the set of parsed arguments at the time of initialization. Note that this is one way of doing this, and you can see other methods <a href="https://docs.wandb.ai/guides/sweeps/quickstart">here</a>.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="syntax"><code><span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">"__main__"</span><span class="p">:</span>
+
+    <span class="n">wandb</span><span class="p">.</span><span class="n">init</span><span class="p">(</span><span class="n">project</span><span class="o">=</span><span class="s">"torch-pointnet"</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">args</span><span class="p">)</span>
+
+    <span class="n">main</span><span class="p">()</span>
+</code></pre></div></div>
+
+<p>And in function <em>main</em>, I replace all occurences of <em>args.** to *config[</em>]<em>. Here, the object *config</em> holds the variables that we informed to W&amp;B at initialization.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="syntax"><code><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    
+    <span class="n">config</span> <span class="o">=</span> <span class="n">wandb</span><span class="p">.</span><span class="n">config</span>
+
+    <span class="c1"># ...
+</span>
+    <span class="n">optimizer</span> <span class="o">=</span> <span class="n">optim</span><span class="p">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">network</span><span class="p">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">betas</span><span class="o">=</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s">"beta1"</span><span class="p">],</span> <span class="n">config</span><span class="p">[</span><span class="s">"beta2"</span><span class="p">]),</span> <span class="n">lr</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s">"lr"</span><span class="p">])</span>
+    <span class="n">scheduler</span> <span class="o">=</span> <span class="n">optim</span><span class="p">.</span><span class="n">lr_scheduler</span><span class="p">.</span><span class="n">StepLR</span><span class="p">(</span><span class="n">optimizer</span><span class="p">,</span> <span class="n">step_size</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s">"step_size"</span><span class="p">],</span> <span class="n">gamma</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s">"gamma"</span><span class="p">])</span>
+
+		<span class="c1"># ...
+</span>
+    <span class="n">train_loader</span> <span class="o">=</span> <span class="n">DataLoader</span><span class="p">(</span><span class="n">train_data</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s">"batch_size"</span><span class="p">],</span> <span class="n">shuffle</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">num_workers</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s">"num_worker"</span><span class="p">])</span>
+    <span class="n">test_loader</span> <span class="o">=</span> <span class="n">DataLoader</span><span class="p">(</span><span class="n">test_data</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s">"batch_size"</span><span class="p">],</span> <span class="n">shuffle</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">num_workers</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+		<span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s">"num_epoch"</span><span class="p">]),</span> <span class="n">leave</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="n">avg_loss</span> <span class="o">=</span> <span class="n">train_one_epoch</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">scheduler</span><span class="p">,</span> <span class="n">device</span><span class="p">,</span> <span class="n">train_loader</span><span class="p">,</span> <span class="n">epoch</span><span class="p">)</span>
+
+				<span class="c1"># rest of main..
+</span></code></pre></div></div>
+
+<h2 id="configure-sweep">Configure Sweep</h2>
+
+<p>Next, I wrote a YAML file to specify the hyperparameters that I want to sweep over, the way how to explore the hyperparameter space, and the set of possible values for each hyperparameter.</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="syntax"><code><span class="na">program</span><span class="pi">:</span> <span class="s">train.py</span>
+<span class="na">method</span><span class="pi">:</span> <span class="s">grid</span>
+<span class="na">metric</span><span class="pi">:</span>
+  <span class="na">name</span><span class="pi">:</span> <span class="s">Test/Loss</span>
+  <span class="na">goal</span><span class="pi">:</span> <span class="s">minimize</span>
+<span class="na">parameters</span><span class="pi">:</span>
+  <span class="na">lr</span><span class="pi">:</span> 
+    <span class="na">values</span><span class="pi">:</span>
+    <span class="pi">-</span> <span class="m">0.1</span>
+    <span class="pi">-</span> <span class="m">0.01</span>
+    <span class="pi">-</span> <span class="m">0.001</span>
+    <span class="pi">-</span> <span class="m">0.0001</span>
+  <span class="na">batch_size</span><span class="pi">:</span>
+    <span class="na">values</span><span class="pi">:</span>
+    <span class="pi">-</span> <span class="m">32</span>
+    <span class="pi">-</span> <span class="m">64</span>
+    <span class="pi">-</span> <span class="m">128</span>
+    <span class="pi">-</span> <span class="m">256</span>
+</code></pre></div></div>
+
+<p>In particular, I’m telling W&amp;B:</p>
+
+<ul>
+  <li>that the training routine is defined at the file <em>train.py</em></li>
+  <li>to use “grid” method (examine all possible combinations of hyperparameter values) for exploration</li>
+  <li>to “minimize” the metric “Test/Loss”. <strong>One important note is that you should log a quantity with name “Test/Loss” somewhere in the training routine.</strong> And I did it previously in the function <em>run_test</em>.</li>
+  <li>variables <em>“lr”</em> and <em>“batch_size”</em> are the ones that can be modified for each different run. And each of them has a set of possible values (e.g. learning rate (<em>lr</em>) can be one of 0.1, 0.01, 0.001, 0.0001)</li>
+</ul>
+
+<h2 id="initialize--run-sweep">Initialize &amp; Run Sweep</h2>
+
+<p>After setting up a sweep configuration in <em>*.yaml</em> file, run the following command to initialize the sweep:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="syntax"><code>wandb sweep <span class="k">*</span>.yaml
+</code></pre></div></div>
+
+<p>W&amp;B will automatically set up things for you and give you a <em>sweep ID</em> which specifies that exact sweep to be run. <strong>Copy that and use it in the next step.</strong></p>
+
+<h2 id="launch-agents">Launch Agent(s)</h2>
+
+<p>What makes sweep feature more powerful is that multiple machines or processes can contribute to the same sweep. This means, you can concurrently test different combinations of hyperparameters across your devices or processes in a single machine. As long as you share the same sweep ID, W&amp;B will distribute tasks to agents participating in the sweep and all you have to do is just waiting for the result.</p>
+
+<p>The below image shows the result of each trial in the middle of sweeping (i.e. it was still on going). As soon as you see the plot at the bottom, you will immediately notice that the cases using large learning rate tend to give higher test losses while batch size seems to have no effect on test loss.</p>
+
+<center>
+    <img class="img-fluid" src="/assets/post-images/Introduction_to_W&amp;B/fig4.png" />
+</center>
+
+<h1 id="summary">Summary</h1>
+
+<p>In this post I briefly introduced only a few of, yet fundamental functionalities of W&amp;B. These include:</p>
+
+<ul>
+  <li>How to set up W&amp;B for your project</li>
+  <li>Logging metrics and various kinds of data using <em>wandb.log</em></li>
+  <li>Analyzing model with <em>wandb.watch</em></li>
+  <li>Checking statistics of system usages collected by W&amp;B</li>
+  <li>Sweep - a powerful way of tuning hyperparameters &amp; visualizing results to gain insights</li>
+</ul>
+
+<p>I hope this post was helpful &amp; comprehensible to you, would be glad if you can benefit from it, work in more productive way. Furthermore, as I mentioned in the introduction, be sure to check out the official documentation for more details and things that were not covered here.</p>
+:ET
