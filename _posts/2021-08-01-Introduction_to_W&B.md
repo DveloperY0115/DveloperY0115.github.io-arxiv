@@ -31,7 +31,7 @@ wandb login
 
 If you have experience with TensorBoard, you would remember that we need to initialize a *SummaryWriter* object which is then used for logging throughout the rest of your program. W&B has no difference, but is more elegant in some sense compared to TensorBoard. Running a single line of code will do everything for us.
 
-```python
+~~~python
 # imports
 # import torch, numpy, etc
 import wandb
@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
 	# run main function
 	main()
-```
+~~~
 
 The above code snippet shows the overall structure of my *train.py* file, which defines various control flows involving the training of PointNet. As you can see, *wandb* is initialized before running the main function which contains a number of *wandb.log* (will be explained soon) calls for tracking important quantities (loss, accuracy, etc) during the experiment. 
 

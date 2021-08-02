@@ -1,4 +1,4 @@
-I"�h<h1 id="introduction">Introduction</h1>
+I"gl<h1 id="introduction">Introduction</h1>
 
 <p>This post is written to serve as the minimal starting point, including basic concepts and ready-to-run code snippets, for you when integrating Weights &amp; Biases (I will call it W&amp;B after all) into your machine learning workflow.</p>
 
@@ -18,109 +18,107 @@
 
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="syntax"><code>pip <span class="nb">install </span>wandb
 wandb login
-<span class="sb">```</span>
-
-<span class="c">## Starting a New Run</span>
-
-If you have experience with TensorBoard, you would remember that we need to initialize a <span class="k">*</span>SummaryWriter<span class="k">*</span> object which is <span class="k">then </span>used <span class="k">for </span>logging throughout the rest of your program. W&amp;B has no difference, but is more elegant <span class="k">in </span>some sense compared to TensorBoard. Running a single line of code will <span class="k">do </span>everything <span class="k">for </span>us.
-
-<span class="sb">```</span>python
-<span class="c"># imports</span>
-<span class="c"># import torch, numpy, etc</span>
-import wandb
-<span class="c"># ...</span>
-
-<span class="c"># def main():</span>
-<span class="c"># bla bla bla</span>
-
-<span class="c"># and many other functions</span>
-<span class="c"># bla bla bla</span>
-
-<span class="k">if </span>__name__ <span class="o">==</span> <span class="s2">"__main__"</span>:
-	
-	<span class="c"># initialize W&amp;B</span>
-	wandb.init<span class="o">(</span><span class="nv">project</span><span class="o">=</span><span class="s2">"torch-pointnet"</span><span class="o">)</span>
-
-	<span class="c"># run main function</span>
-	main<span class="o">()</span>
-<span class="sb">```</span>
-
-The above code snippet shows the overall structure of my <span class="k">*</span>train.py<span class="k">*</span> file, which defines various control flows involving the training of PointNet. As you can see, <span class="k">*</span>wandb<span class="k">*</span> is initialized before running the main <span class="k">function </span>which contains a number of <span class="k">*</span>wandb.log<span class="k">*</span> <span class="o">(</span>will be explained soon<span class="o">)</span> calls <span class="k">for </span>tracking important quantities <span class="o">(</span>loss, accuracy, etc<span class="o">)</span> during the experiment. 
-
-<span class="c"># Logging &amp; Model Tracking</span>
-
-<span class="c">## Log (Almost) Everything You Want</span>
-
-<span class="k">*</span>wandb.log<span class="k">*</span> is a <span class="k">function </span>that we use <span class="k">for </span>logging. You can log almost everything you can imagine <span class="k">in </span>various ML workflows - numbers, images, audio, video, HTML, Histogram, 3D data, and much more. You can check the supported types <span class="o">[</span>here]<span class="o">(</span>https://docs.wandb.ai/guides/track/log<span class="o">)</span><span class="nb">.</span>
-
-In my <span class="k">case</span>, I use this <span class="k">for </span>tracking:
-
-- Training loss
-- Test loss
-- Test accuracy
-- Visualization of <span class="nb">test </span>result <span class="o">(</span><span class="k">for </span>qualitative analysis<span class="p">)</span>
-
-For instance, <span class="k">in </span>the <span class="k">function</span> <span class="k">*</span>train_one_epoch<span class="k">*</span> that carries out optimization <span class="k">for </span>a single epoch, I simply write:
-
-<span class="sb">```</span>python
-def train_one_epoch<span class="o">(</span>network, optimizer, scheduler, device, train_loader, epoch<span class="o">)</span>:
-	
-	<span class="c"># forward propagation</span>
-	<span class="c"># bla bla bla</span>
-
-	<span class="c"># back propagation</span>
-	<span class="c"># bla bla bla</span>
-
-	<span class="c"># update</span>
-	<span class="c"># bla bla bla</span>
-
-	<span class="c"># log data</span>
-	wandb.log<span class="o">({</span><span class="s2">"Train/Loss"</span>: avg_loss<span class="o">}</span>, <span class="nv">step</span><span class="o">=</span>epoch<span class="o">)</span>
-<span class="sb">```</span>
-
-The quantity of interest is packed into a Python dictionary as a <span class="k">*</span><span class="o">(</span>key, value<span class="o">)</span><span class="k">*</span> pair where <span class="k">**</span>the key becomes the title of a plot<span class="k">**</span>, and <span class="k">**</span>the value represents the actual metric<span class="k">**</span> to be recorded. Notice how simply the logging works. 
-
-Of course, I can put as many kinds of data into a dictionary and log them at once.
-
-<span class="sb">```</span>python
-def run_test<span class="o">(</span>network, device, test_loader, epoch<span class="o">)</span>:
-	
-	<span class="c"># forward propagation</span>
-
-	<span class="c"># compute metrics used for testing</span>
-
-	<span class="c"># log data</span>
-	wandb.log<span class="o">(</span>
-        <span class="o">{</span><span class="s2">"Test/Loss"</span>: loss, <span class="s2">"Test/Accuracy"</span>: accuracy, <span class="s2">"Test/Result"</span>: wandb.Image<span class="o">(</span>fig<span class="o">)}</span>, <span class="nv">step</span><span class="o">=</span>epoch
-    <span class="o">)</span>
-<span class="sb">```</span>
-
-<span class="o">(</span><span class="k">*</span>Disclaimer: Logging image data isn<span class="s1">'t working as intended at the time I write this post. I'</span>ll try to resolve this issue ASAP.<span class="o">)</span><span class="k">*</span>
-
-As a result, you can see this beautiful plot of training loss decreasing nicely over time. What makes this even cooler is that <span class="k">**</span>you can check the results <span class="k">in </span>real <span class="nb">time </span>at the control panel through your web browser<span class="k">**</span> <span class="o">(</span>both PC and mobile<span class="o">)</span> without logging into your remote machine.
-
-&lt;center&gt;
-    &lt;img <span class="nv">class</span><span class="o">=</span><span class="s2">"img-fluid"</span> <span class="nv">src</span><span class="o">=</span><span class="s2">"/assets/post-images/Introduction_to_W&amp;B/fig1.png"</span><span class="o">&gt;</span>
-&lt;/center&gt;
-
-<span class="c">## Anatomy of Your Model with W&amp;B</span>
-
-Having problem with exploding <span class="o">(</span>or vanishing<span class="o">)</span> gradients and don<span class="s1">'t know which part~~(s)~~ of your model is ~~(are)~~ in trouble? Using W&amp;B, you can easily diagnose the problem. To make W&amp;B pay attention to the internal of your model, simply wrap the model after initializing it.
-
-~~~python
-		
-def main():
-		# check GPU
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-		
-		# model &amp; optimizer, schedulers
-    network = PointNetCls().to(device)
-
-    # make W&amp;B track model'</span>s gradient and topology
-    wandb.watch<span class="o">(</span>network, <span class="nv">log_freq</span><span class="o">=</span>100, <span class="nv">log_graph</span><span class="o">=</span>True<span class="o">)</span>
-
-		<span class="c"># and the rest of main..</span>
 </code></pre></div></div>
+
+<h2 id="starting-a-new-run">Starting a New Run</h2>
+
+<p>If you have experience with TensorBoard, you would remember that we need to initialize a <em>SummaryWriter</em> object which is then used for logging throughout the rest of your program. W&amp;B has no difference, but is more elegant in some sense compared to TensorBoard. Running a single line of code will do everything for us.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="syntax"><code><span class="c1"># imports
+# import torch, numpy, etc
+</span><span class="kn">import</span> <span class="nn">wandb</span>
+<span class="c1"># ...
+</span>
+<span class="c1"># def main():
+# bla bla bla
+</span>
+<span class="c1"># and many other functions
+# bla bla bla
+</span>
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">"__main__"</span><span class="p">:</span>
+	
+	<span class="c1"># initialize W&amp;B
+</span>	<span class="n">wandb</span><span class="p">.</span><span class="n">init</span><span class="p">(</span><span class="n">project</span><span class="o">=</span><span class="s">"torch-pointnet"</span><span class="p">)</span>
+
+	<span class="c1"># run main function
+</span>	<span class="n">main</span><span class="p">()</span>
+</code></pre></div></div>
+
+<p>The above code snippet shows the overall structure of my <em>train.py</em> file, which defines various control flows involving the training of PointNet. As you can see, <em>wandb</em> is initialized before running the main function which contains a number of <em>wandb.log</em> (will be explained soon) calls for tracking important quantities (loss, accuracy, etc) during the experiment.</p>
+
+<h1 id="logging--model-tracking">Logging &amp; Model Tracking</h1>
+
+<h2 id="log-almost-everything-you-want">Log (Almost) Everything You Want</h2>
+
+<p><em>wandb.log</em> is a function that we use for logging. You can log almost everything you can imagine in various ML workflows - numbers, images, audio, video, HTML, Histogram, 3D data, and much more. You can check the supported types <a href="https://docs.wandb.ai/guides/track/log">here</a>.</p>
+
+<p>In my case, I use this for tracking:</p>
+
+<ul>
+  <li>Training loss</li>
+  <li>Test loss</li>
+  <li>Test accuracy</li>
+  <li>Visualization of test result (for qualitative analysis)</li>
+</ul>
+
+<p>For instance, in the function <em>train_one_epoch</em> that carries out optimization for a single epoch, I simply write:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="syntax"><code><span class="k">def</span> <span class="nf">train_one_epoch</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">scheduler</span><span class="p">,</span> <span class="n">device</span><span class="p">,</span> <span class="n">train_loader</span><span class="p">,</span> <span class="n">epoch</span><span class="p">):</span>
+	
+	<span class="c1"># forward propagation
+</span>	<span class="c1"># bla bla bla
+</span>
+	<span class="c1"># back propagation
+</span>	<span class="c1"># bla bla bla
+</span>
+	<span class="c1"># update
+</span>	<span class="c1"># bla bla bla
+</span>
+	<span class="c1"># log data
+</span>	<span class="n">wandb</span><span class="p">.</span><span class="n">log</span><span class="p">({</span><span class="s">"Train/Loss"</span><span class="p">:</span> <span class="n">avg_loss</span><span class="p">},</span> <span class="n">step</span><span class="o">=</span><span class="n">epoch</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>The quantity of interest is packed into a Python dictionary as a <em>(key, value)</em> pair where <strong>the key becomes the title of a plot</strong>, and <strong>the value represents the actual metric</strong> to be recorded. Notice how simply the logging works.</p>
+
+<p>Of course, I can put as many kinds of data into a dictionary and log them at once.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="syntax"><code><span class="k">def</span> <span class="nf">run_test</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">device</span><span class="p">,</span> <span class="n">test_loader</span><span class="p">,</span> <span class="n">epoch</span><span class="p">):</span>
+	
+	<span class="c1"># forward propagation
+</span>
+	<span class="c1"># compute metrics used for testing
+</span>
+	<span class="c1"># log data
+</span>	<span class="n">wandb</span><span class="p">.</span><span class="n">log</span><span class="p">(</span>
+        <span class="p">{</span><span class="s">"Test/Loss"</span><span class="p">:</span> <span class="n">loss</span><span class="p">,</span> <span class="s">"Test/Accuracy"</span><span class="p">:</span> <span class="n">accuracy</span><span class="p">,</span> <span class="s">"Test/Result"</span><span class="p">:</span> <span class="n">wandb</span><span class="p">.</span><span class="n">Image</span><span class="p">(</span><span class="n">fig</span><span class="p">)},</span> <span class="n">step</span><span class="o">=</span><span class="n">epoch</span>
+    <span class="p">)</span>
+</code></pre></div></div>
+
+<p>(<em>Disclaimer: Logging image data isn’t working as intended at the time I write this post. I’ll try to resolve this issue ASAP.)</em></p>
+
+<p>As a result, you can see this beautiful plot of training loss decreasing nicely over time. What makes this even cooler is that <strong>you can check the results in real time at the control panel through your web browser</strong> (both PC and mobile) without logging into your remote machine.</p>
+
+<center>
+    <img class="img-fluid" src="/assets/post-images/Introduction_to_W&amp;B/fig1.png" />
+</center>
+
+<h2 id="anatomy-of-your-model-with-wb">Anatomy of Your Model with W&amp;B</h2>
+
+<p>Having problem with exploding (or vanishing) gradients and don’t know which part<del>(s)</del> of your model is <del>(are)</del> in trouble? Using W&amp;B, you can easily diagnose the problem. To make W&amp;B pay attention to the internal of your model, simply wrap the model after initializing it.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="syntax"><code>		
+<span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+		<span class="c1"># check GPU
+</span>    <span class="n">device</span> <span class="o">=</span> <span class="n">torch</span><span class="p">.</span><span class="n">device</span><span class="p">(</span><span class="s">"cuda:0"</span> <span class="k">if</span> <span class="n">torch</span><span class="p">.</span><span class="n">cuda</span><span class="p">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s">"cpu"</span><span class="p">)</span>
+		
+		<span class="c1"># model &amp; optimizer, schedulers
+</span>    <span class="n">network</span> <span class="o">=</span> <span class="n">PointNetCls</span><span class="p">().</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+
+    <span class="c1"># make W&amp;B track model's gradient and topology
+</span>    <span class="n">wandb</span><span class="p">.</span><span class="n">watch</span><span class="p">(</span><span class="n">network</span><span class="p">,</span> <span class="n">log_freq</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">log_graph</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+		<span class="c1"># and the rest of main..
+</span></code></pre></div></div>
 
 <p>W&amp;B gives you the freedom of choosing which aspects of your network are going to be tracked. In the snippet above, I decided to record the gradients at all layers of my model every 100 steps and track the computational graph formed during training.</p>
 
