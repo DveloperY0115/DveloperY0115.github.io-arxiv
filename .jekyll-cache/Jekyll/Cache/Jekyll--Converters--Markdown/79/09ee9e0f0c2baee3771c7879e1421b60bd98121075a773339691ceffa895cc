@@ -1,11 +1,6 @@
----
-layout: post
-title: "Summary of 'Image GANs meet Differentiable Rendering for Inverse Graphics and Interpretable 3D Neural Rendering'"
-subtitle: "Image GANs meet Differentiable Rendering for Inverse Graphics and Interpretable 3D Neural Rendering (ICLR 2021)"
-background: '/assets/post-images/GANverse3D/fig5.png'
----
-
+I"¾^<div>
 ![](https://www.youtube.com/watch?v=gz5E9wszZSI)
+<span class="caption text-muted">Video 1. <b>GANverse3D: Knight Rider KITT Re-created with AI by NVIDIA</b>.</span>
 
 # Motivations
 
@@ -26,7 +21,7 @@ background: '/assets/post-images/GANverse3D/fig5.png'
 This work merges two cutting-edge fields in computer vision - differentiable rendering and GANs - to perform a task of reconstructing 3D model with proper appearance given just a single image. To overcome the limit of previous differentiable rendering approaches that required multi-view imagery of the target object that are not readily available in most cases, this work utilizes 3D knowledge implicitly acquired by GANs to populate multi-view dataset from an image. Those multi-view imageries are then passed to inverse graphics network resulting in high quality reconstruction of an object (as well as its appearance) depicted in the original image.
 
 <center>
-    <img class="img-fluid" src="/assets/post-images/GANverse3D/fig1.png">
+    <img class="img-fluid" src="/assets/post-images/GANverse3D/fig1.png" />
 </center>
 <span class="caption text-muted">Figure 1. <b>Image GAN (StyleGAN) meets differentiable renderer</b>.</span>
 
@@ -43,14 +38,14 @@ This trained inverse graphics network is then used to disentangle StyleGAN's lat
 The goal of this step is to utilize StyleGAN to generate multi-view imagery.
 
 <center>
-    <img class="img-fluid" src="/assets/post-images/GANverse3D/fig2.png">
+    <img class="img-fluid" src="/assets/post-images/GANverse3D/fig2.png" />
 </center>
 <span class="caption text-muted">Figure 2. <b>StyleGAN Overview</b>. The latent vector 'z' is first transformed to another latent vector 'w' and then again undergoes transform 'A', defined individually at each level of synthesis network, at the time of injection.</span>
 
 StyleGAN is a 16 layers neural network that **maps a latent code** $z \in \mathcal{Z}$ **drawn from a normal distribution into a realistic image.** The code $z$ is first mapped to an intermediate latent code $w \in W$ which is transformed to $w^{\*} = (w\_{1}^{\*}, w\_{2}^{\*}, \dots, w\_{16}^{\*}) \in W^{\*}$ through 16 learned affine transformations. The latent space $W^{\*}$, obtained by applying transformations to $W$ is called *the transformed latent space* from now on. These transformed latent codes $w^{\*}$ are then injected as the style information to the StyleGAN synthesis network.
 
 <center>
-    <img class="img-fluid" src="/assets/post-images/GANverse3D/fig3.png">
+    <img class="img-fluid" src="/assets/post-images/GANverse3D/fig3.png" />
 </center>
 <span class="caption text-muted">Figure 3. <b>Examples of generating multi-view dataset by manipulating different parts of latent code provided to StyleGAN</b>. (1) Along row: images generated using the same viewpoint code but with different content code. (2) Along column: images generated using the same content code but with different viewpoint code.</span>
 
@@ -117,7 +112,7 @@ The authors propose a mapping network that learns to map the viewpoint, shape (m
 ### Mapping Network
 
 <center>
-    <img class="img-fluid" src="/assets/post-images/GANverse3D/fig4.png">
+    <img class="img-fluid" src="/assets/post-images/GANverse3D/fig4.png" />
 </center>
 <span class="caption text-muted">Figure 4. <b>Mapping Network Overview</b>.</span>
 
@@ -130,7 +125,7 @@ The mapping network maps the viewpoints to fist 4 layers and maps the shape, tex
 
  where $\textbf{z}^{\text{view}} \in \mathbb{R}^{2048}$, $\textbf{z}^{\text{shape}}$, $\textbf{z}^{\text{txt}}$, $\textbf{z}^{\text{bck}} \in \mathbb{R}^{3008}$ and $\theta_{v}$, $\theta_{s}$, $\theta_{t}$, $\theta_{b}$ are network parameters trained independently to others. These codes are then combined to form the final latent code for StyleGAN and is defined as follows:
 
-$$\widetilde{w}^{mtb} = \textbf{s}^{m} \odot \textbf{z}^{\text{shape}} + \textbf{s}^{t} \odot \textbf{z}^{\text{txt}} + \textbf{s}^{b} \odot \textbf{z}^{\text{bck}},$$
+\$\$\widetilde{w}^{mtb} = \textbf{s}^{m} \odot \textbf{z}^{\text{shape}} + \textbf{s}^{t} \odot \textbf{z}^{\text{txt}} + \textbf{s}^{b} \odot \textbf{z}^{\text{bck}},\$\$
 
 where $\odot$ denotes element-wise product, and $\textbf{s}^{m}$, $\textbf{s}^{t}$, $\textbf{s}^{b} \in \mathbb{R}^{3008}$ are shared across all the samples.
 
@@ -140,13 +135,13 @@ In practice, the authors found that mapping $V$ to a high dimensional code is ch
 
 ### Training Scheme
 
-The mapping network and StyleGAN are trained & fine-tuned in two stages.
+The mapping network and StyleGAN are trained &amp; fine-tuned in two stages.
 
 First, the mapping network is trained while the weights of StyleGAN are fixed. This makes the mapping network to output reasonable latent codes for StyleGAN. After that, both StyleGAN and the mapping network are fine-tuned to achieve clearer disentanglement of different attributes.
 
 When warming up the mapping network, viewpoint codes $w\_{v}^{\*}$ are sampled among the chosen viewpoints and the remaining dimensions of $w^{\*} \in W^{\*}$ are sampled as well. Then the mapping network is trained so that **the mapped code $\widetilde{w}$ matches StyleGAN's code $w^{\*}$ by minimizing $L\_{2}$ difference** between these two. Precisely, the loss function for the mapping network is:
 
-$$L\_{\text{mapnet}} (\theta\_{v}, \theta\_{s}, \theta\_{t}, \theta\_{b}) = \Vert \widetilde{w} - w^{\*} \Vert\_{2} - \sum\_{i} \sum\_{k \in \{ m, \, t, \, b\}} \textbf{s}\_{i}^{k} \log (\textbf{s}\_{i}^{k}).$$
+\$\$L\_{\text{mapnet}} (\theta\_{v}, \theta\_{s}, \theta\_{t}, \theta\_{b}) = \Vert \widetilde{w} - w^{\*} \Vert\_{2} - \sum\_{i} \sum\_{k \in \{ m, \, t, \, b\}} \textbf{s}\_{i}^{k} \log (\textbf{s}\_{i}^{k}).\$\$
 
 Unfortunately, training only the mapping network does not disentangle the background from others. Therefore, StyleGAN has to be fine-tuned to get a better disentanglement. A cycle consistency loss involves in this fine-tuning process. Specifically, keep in mind that StyleGAN synthesizes images from sampled latent codes. The consistency between the original sampled properties and the shape, texture, and background of an image synthesized by StyleGAN from the code is encouraged via the inverse graphics network. The authors further fed the same background $B$ with two different $\{ S, T \}$ pairs (i.e. $\{ S_{1}, T_{1} \}$, $\{ S_{2}, T_{2} \}$) to generate two images $I_{1}$ and $I_{2}$. Then they enforced the re-synthesized backgrounds $\bar{B}\_{1}$ and $\bar{B}\_{2}$ to be similar. This loss lead the network to disentangle the background from the foreground object. Instead of directly measuring $L_{2}$ distance between the original images and the re-synthesized images in image space, which results in blurry images, they are first transformed to latent space and the distance between them is then computed. Therefore, the fine-tuning loss takes the following form:
 
@@ -172,23 +167,23 @@ For details of datasets used, please refer to the paper.
 ## 3D Reconstruction Results
 
 <center>
-    <img class="img-fluid" src="/assets/post-images/GANverse3D/fig5.png">
+    <img class="img-fluid" src="/assets/post-images/GANverse3D/fig5.png" />
 </center>
 <span class="caption text-muted">Figure 5. <b>3D Reconstruction Results</b>.</span>
 
 The quality of the predicted shapes and textures, and the diversity of the 3D car shapes is notable. Also, this pipeline can also work well on more challenging object classes such as horse and bird.
 
 <center>
-    <img class="img-fluid" src="/assets/post-images/GANverse3D/fig6.png">
+    <img class="img-fluid" src="/assets/post-images/GANverse3D/fig6.png" />
 </center>
 <span class="caption text-muted">Figure 6. <b>Comparison on Pascal3D Test Set</b>.</span>
 
 The effect of using StyleGAN-synthesized multi-view images turns out to be significant. The same inverse graphics networks but each separately trained on StyleGAN dataset and Pascal3D dataset exhibit huge difference between the reconstruction results both qualitatively and quantitatively. Note that the Pascal3D model's prediction is quite plausible in the input image view, but its quality degrades as the viewpoint changes. Meanwhile, **the same inverse graphics architecture trained on StyleGAN dataset is able to perform consistent reconstruction through various viewpoints.** 
 
-Furthermore, the time for preparing & annotating dataset is literally *incomparable*. While StyleGAN dataset takes about 1 minute for annotation, Pascal3D dataset costs about 200 ~ 350 hours for the same task proving the efficiency of this approach.
+Furthermore, the time for preparing &amp; annotating dataset is literally *incomparable*. While StyleGAN dataset takes about 1 minute for annotation, Pascal3D dataset costs about 200 ~ 350 hours for the same task proving the efficiency of this approach.
 
 <center>
-    <img class="img-fluid" src="/assets/post-images/GANverse3D/fig7.png">
+    <img class="img-fluid" src="/assets/post-images/GANverse3D/fig7.png" />
 </center>
 <span class="caption text-muted">Figure 7. <b>Ablation Study</b>.</span>
 
@@ -208,7 +203,7 @@ The comparison is done by following the following steps:
 3. Or pass these properties to DIB-R instead for rendering.
 
 <center>
-    <img class="img-fluid" src="/assets/post-images/GANverse3D/fig8.png">
+    <img class="img-fluid" src="/assets/post-images/GANverse3D/fig8.png" />
 </center>
 <span class="caption text-muted">Figure 8. <b>Dual Renderer (DIB-R vs StyleGAN-R)</b>.</span>
 
@@ -225,14 +220,14 @@ To examine the capability of StyleGAN-R as a neural renderer, the authors tested
 Previously, we found that some of latent codes of StyleGAN are associated with viewpoints of images. Therefore, to test whether only the viewpoint of images can be modified using StyleGAN-R, **only the viewpoint code is manipulated while keeping the content code fixed**. It turns out, StyleGAN-R can successfully generate images from multiple viewpoints, at the same time, keeping the content of images unchanged across them. The result is shown below.
 
 <center>
-    <img class="img-fluid" src="/assets/post-images/GANverse3D/fig9.png">
+    <img class="img-fluid" src="/assets/post-images/GANverse3D/fig9.png" />
 </center>
 <span class="caption text-muted">Figure 9. <b>Camera Controller</b>.</span>
 
 The qualitative comparison between this method - *using the mapping network which maps scene elements to proper latent codes for StyleGAN*, and an alternative approach - *direct optimization of latent code constrained on $L_{2}$ loss between images* is shown in the following figure:
 
 <center>
-    <img class="img-fluid" src="/assets/post-images/GANverse3D/fig10.png">
+    <img class="img-fluid" src="/assets/post-images/GANverse3D/fig10.png" />
 </center>
 <span class="caption text-muted">Figure 10. <b>Mapping Network vs Direct Latent Code Optimization</b>.</span>
 
@@ -243,7 +238,7 @@ As one can easily notice, the direct optimization of latent codes fails complete
 Similarily, by manipulating content code while keeping the viewpoint code frozen, we can change the appearance of the object depicted in the image. The result is shown in the following figure:
 
 <center>
-    <img class="img-fluid" src="/assets/post-images/GANverse3D/fig11.png">
+    <img class="img-fluid" src="/assets/post-images/GANverse3D/fig11.png" />
 </center>
 <span class="caption text-muted">Figure 11. <b>3D Manipulation via Content Code Modification</b>.</span>
 
@@ -252,7 +247,7 @@ Similarily, by manipulating content code while keeping the viewpoint code frozen
 Also, thanks to the latent space formed by training StyleGAN on large number of image samples, StyleGAN-R outputs fine results in the application to real images as well.
 
 <center>
-    <img class="img-fluid" src="/assets/post-images/GANverse3D/fig12.png">
+    <img class="img-fluid" src="/assets/post-images/GANverse3D/fig12.png" />
 </center>
 <span class="caption text-muted">Figure 12. <b>Real Image Manipulation</b>.</span>
 
@@ -265,3 +260,5 @@ However, there are plenty of rooms that we can expect improvements in follow-ups
 1. **The model fails to predict lighting correctly.** Effects related to lighting such as reflection, transparency, and shadows are predicted inaccurately using the spherical harmonic lighting model.
 2. **Disentangling background from other image components is incomplete**, as one can notice that the modification of textures introduces slight changes in backgrounds as well.
 3. **The model is also vulnerable to out-of-distribution objects** and suffers when predicting shapes of them.
+</div>
+:ET
