@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Summary of 'Generative Adversarial Transformers (ICML 2021)'"
+title: "Summary of 'Generative Adversarial Transformers'"
 subtitle: "Generative Adversarial Transformers (ICML 2021)"
 background: '/assets/post-images/GANformer/fig2.png'
 ---
