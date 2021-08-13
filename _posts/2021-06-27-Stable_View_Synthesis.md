@@ -8,6 +8,8 @@ background: '/assets/post-images/SVS/SVS_method_overview.png'
 <img class="img-fluid" src="/assets/post-images/SVS/SVS_method_overview.png">
 <span class="caption text-muted">Figure 1. <b>SVS Method Overview</b>.</span>
 
+💡 **Check out my presentation slides on this paper [here](/assets/slides/SVS_Review.pdf)!**
+
 # Key Contributions
 
 - A novel method for photorealistic view synthesis, which **embedds feature vectors** needed during rendering **onto a 3D geometric scaffold reconstructed** via various means.
