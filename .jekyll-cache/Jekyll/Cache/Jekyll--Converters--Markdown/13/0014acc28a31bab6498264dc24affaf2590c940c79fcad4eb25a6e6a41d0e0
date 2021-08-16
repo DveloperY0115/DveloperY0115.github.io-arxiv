@@ -1,0 +1,180 @@
+I"�9<h1 id="motivations">Motivations</h1>
+
+<ul>
+  <li>Point cloud is an important type of geometric data structure which can easily be encountered in real-world problems. However, these data have been transformed to voluminous 3D voxel grids or collections of images due to its irregular format and such converted data came with some issues.</li>
+</ul>
+
+<h1 id="key-contributions">Key Contributions</h1>
+
+<center>
+    <img class="img-fluid" src="/assets/post-images/PointNet/fig1.png" />
+</center>
+<p><span class="caption text-muted">Figure 1. <b>Applications of PointNet</b>.</span></p>
+
+<ul>
+  <li>Designs a novel deep neural network architecture called <em>PointNet</em> suitable for consuming unordered point sets in 3D.</li>
+  <li>Demonstrates how such architecture can be trained to perform 3D shape classification, shape part segmentation and scene semantic parsing tasks.</li>
+  <li>Provides thorough empirical and theoretical analysis on the stability and efficiency of the proposed method.</li>
+  <li>Visualizes the 3D features computed by the selected layers in the network and develops intuitive explanations for its performance.</li>
+</ul>
+
+<hr />
+
+<h1 id="tldr">TL;DR</h1>
+
+<p>This work presents PointNet along with the idea for extracting useful features from unordered set of 3D points. This novel architecture is capable of various tasks such as 3D shape classification, shape part segmentation and scene semantic parsing tasks, and achieves both best performance and efficiency when compared to previous methods. Furthermore, it provides detailed justification on the internal behavior of PointNet using visualizations of its layers helping us to understand the reason behind its performance intuitively.</p>
+
+<h1 id="methods">Methods</h1>
+
+<h2 id="problem-statement">Problem Statement</h2>
+
+<p>The primary goal of this work is to design a neural network which can directly consume unordered point sets as inputs.</p>
+
+<p>A point cloud is represented as a set of 3D points $\{ P_{i} \vert i = 1, \dots, n \}$, where each point $P_{i}$ is a vector of its $(x, y, z)$ coordinate and possibly with extra feature channels such as color, normal etc.</p>
+
+<p>For the object classification task, the input point cloud is either directly sampled from a shape or pre-segmented from a scene point cloud. Given such point cloud as input, PointNet outputs $k$ scores for all the $k$ candidate classes.</p>
+
+<p>For semantic segmentation, the input can be a single object for part region segmentation, or a sub-volume from a 3D scene for object region segmentation. Then PointNet will output $n \times m$ scores for each of the $n$ points and each of the $m$ semantic subcategories.</p>
+
+<h2 id="deep-learning-on-point-sets">Deep Learning on Point Sets</h2>
+
+<center>
+    <img class="img-fluid" src="/assets/post-images/PointNet/fig2.png" />
+</center>
+<p><span class="caption text-muted">Figure 2. <b>Qualitative results for part segmentation</b>.</span></p>
+
+<p>The structure of PointNet is heavily influenced by the properties of point sets in $\mathbb{R}^{n}$.</p>
+
+<h3 id="properties-of-point-sets-in-mathbbrn">Properties of Point Sets in $\mathbb{R}^{n}$</h3>
+
+<p>A point cloud is in fact a subset of points from an Euclidean space $\mathbb{R}^{3}$. And it has three notable properties:</p>
+
+<ol>
+  <li><strong>Unordered.</strong> Unlike pixel arrays in images or voxel arrays in volumetric grids, point cloud is just a collection of points without specific order. That is, a network which takes point clouds as input must be invariant to all possible permutations of them (e.g. if a point cloud contains $N$ number of points, then the network must work consistently across its $N!$ permutations).</li>
+  <li><strong>Interaction among points.</strong> The points are from a space with a distance metric. This implies that points are not isolated, and in fact neighboring points form a meaningful subset. Thus, the model should be able to capture local structures from points inside some local region.</li>
+  <li><strong>Invariance under transformations.</strong> Since the point clouds of our concern are geometric representations of objects, the learned representation of point sets should be invariant to certain transformations. For example, rotating or translating a point cloud should not alter its predicted category.</li>
+</ol>
+
+<h3 id="pointnet-architecture">PointNet Architecture</h3>
+
+<center>
+    <img class="img-fluid" src="/assets/post-images/PointNet/fig3.png" />
+</center>
+<p><span class="caption text-muted">Figure 3. <b>PointNet Architecture</b>.</span></p>
+
+<p>The entire PointNet architecture is illustrated above. Note that the classification network and the segmentation network share a great portion of structures.</p>
+
+<p>The network has three key modules:</p>
+
+<ol>
+  <li>The max pooling layer as a symmetric function to aggregate information from all points in the input point cloud.</li>
+  <li>A local and global information combination structure.</li>
+  <li>Two joint alignment networks (denoted “T-Net”s) that align both input points and point features.</li>
+</ol>
+
+<p>The intention behind these structure will be discussed in the following sections.</p>
+
+<p>&lt; <strong>Symmetry Function for Unordered Input &gt;</strong></p>
+
+<p>There are three possible strategies to make a model invariant to input permutation:</p>
+
+<ol>
+  <li>Sort input into a canonical order</li>
+  <li>Treat the input as asequence to train an RNN, but augment the training data by all kinds of permutations</li>
+  <li><strong>Use a simple symmetric function to aggregate the information from each point</strong></li>
+</ol>
+
+<p>Here, a symmetric function takes $n$ vectors as input and outputs a new vector which is invariant to the input order. + and * operators are examples of such function.</p>
+
+<p>While the idea of using sorting sounds simple, but in fact there does not exist a stable ordering in high dimensional space. Furthermore, one **might hope RNN to be invariant to input order when trained with randomly permuted sequence, but a study shows that it’s still hard to neglect the effect of different ordering. Moreover, RNN is hard to scale to thousands of input elements.</p>
+
+<p>Therefore, it turns out that the reasonable way to cope with unordered set of points is to use a symmetric function.</p>
+
+<p>The idea of the paper is to approximate a general function defined on a point set by applying a symmetric function on transformed elements in the set:</p>
+
+<p>$$f({ x_1, \dots, x_n}) \approx g(h(x_1), \dots, h(x_n)),$$</p>
+
+<p>where $f: 2^{\mathbb{R}^{N}} \rightarrow \mathbb{R}$, $h: \mathbb{R}^{N} \rightarrow \mathbb{R}^{K}$ and $g: \mathbb{R}^{K} \times \cdots \times \mathbb{R}^{K} \rightarrow \mathbb{R}$ is a symmetric funciton. In practice, the basic module of PointNet is very simple. The function $h$ is approximated by a multi-layer perceptron and $g$ is approximated by a composition of a single variable function and a max pooling. Apart from the simplexity of module, it has interesting properties and achieves high performance in a few different applications.</p>
+
+<p>&lt; <strong>Local and Global Information Aggregation &gt;</strong></p>
+
+<center>
+    <img class="img-fluid" src="/assets/post-images/PointNet/fig4.png" />
+</center>
+<p><span class="caption text-muted">Figure 4. <b>Qualitative results for semantic segmentation</b>.</span></p>
+
+<p>The output from the above section has a form of a vector $[f_{1}, \dots, f_{K}]$, which is a global signature of the input set. One can simply construct a SVM or multi-layer perceptron classifier using such global features representing shape for classification. However, compared with shape classification, point segmentation requires not only global features but also local features that vary over different regions in the given shape (or scene). This issue can be easily addressed by simply concatenating the obtained global features to local features. After that, one can extract new per point features based on the “combined” point features which now contain both global and local information.</p>
+
+<center>
+    <img class="img-fluid" src="/assets/post-images/PointNet/fig5.png" />
+</center>
+<p><span class="caption text-muted">Figure 5. <b>Network architecture for part segmentation</b>.</span></p>
+
+<p>With this modification, PointNet is now able to predict per point quantities that depend on both local geometry and global semantics. For example, a experimental result shows that the network can carry out accurate normal prediction which requires understanding of a point’s local neighborhood.</p>
+
+<p><strong>&lt; Joint Alignment Network &gt;</strong></p>
+
+<p>It’s trivial that the semantic labeling of a point cloud must be invariant if the point cloud is transformed by certain geometric transformations - rotation, translation, etc. Thus, it is desirable that the learnt representation of the point set is invariant to such transformations.</p>
+
+<p>One straightforward solution for this is to align all input set to a canonical space before feature extraction. Then our question would be: “How can we find an appropriate transformation which will bring a point cloud of interest to such well-aligned, canonical space?”</p>
+
+<p>The answer is simple - predict an affine transformation matrix using a mini, PointNet-like network and apply this predicted transformation to the coordinates of input points right away.</p>
+
+<p>This idea - aligning the points in Euclidean space - can be extended to the alignment of feature space as well. Thus, we append additional alignment network on point features and predict a feature transformation matrix to align features from different input point clouds. However, due to the high dimensionality of feature space, finding the optimal transformation matrix is difficult. Therefore, we constrain the feature transformation matrix to be close to orthogonal matrix:</p>
+
+<p>$$L_{\text{reg}} = \Vert I - AA^{T} \Vert^{2}_{F},$$</p>
+
+<p>where $A$ is the feature alignment matrix predicted by T-Net. Thanks to its property of having the determinant of 1, applying such transformation will not cause any information loss.</p>
+
+<h3 id="theoretical-analysis">Theoretical Analysis</h3>
+
+<p><strong>&lt; Universal approximation &gt;</strong></p>
+
+<p>PointNet can well approximate continuous set functions. By the continuity of set functions, a small perturbation to the input point set should not greatly change the function values, such as classification or segmentation scores.</p>
+
+<p>Formally, let $\mathcal{X} = { S: S \subseteq [0, 1]^{m} \,\, \text{and} \,\, \vert S \vert = n}$, $f: \mathcal{X} \rightarrow \mathbb{R}$ be a continuous set function on $\mathcal{X}$ w.r.t to Hausdorff distance $d_{H}(\cdot, \cdot)$, i.e., $\forall \epsilon &gt; 0$, $\exists \delta &gt; 0$, for any $S, S^{\prime} \in \mathcal{X}$, if $d_{H}(S, S^{\prime}) &lt; \delta$, then $\vert f(S) - f(S^{\prime}) \vert &lt; \epsilon$. Then the proposed theorem states that $f$ can be arbitrarily approximated by the neural network given enough neurons at the max pooling layer.</p>
+
+<hr />
+
+<p><strong>Theorem 1.</strong> <em>Suppose $f: \mathcal{X} \rightarrow \mathbb{R}$  is a continuous set function w.r.t Hausdorff distance $d_{H}(\cdot, \cdot)$. That is, $\forall \epsilon &gt; 0$ , $\exists$ a continuous function $h$ and a symmetric function</em> $g(x_1, \dots, x_n) = \gamma \circ \text{MAX}$, <em>such that for any</em> $S \in \mathcal{X}$,</p>
+
+<p>$$ \Big\vert \, f(S) - \gamma \Big(  \underset{x_{i} \in S}{\text{MAX}} { h(x_{i})} \Big) \Big\vert &lt; \epsilon$$</p>
+
+<p><em>where $x_{1}, \dots, x_{n}$ is the full list of elements in $S$ ordered arbitrarily, $\gamma$ is a continuous function, and $\text{MAX}$ is a vector max operator that takes $n$ vectors as input and returns a new vector of the element-wise maximum.</em></p>
+
+<hr />
+
+<p><strong>&lt; Bottleneck dimension and stability &gt;</strong></p>
+
+<p>Both theoretically and experimentally, the authors discovered that the expressiveness of PointNet is greatly affected by the dimension of the max pooling layer. Let’s define $\textbf{u} = \underset{x_{i} \in S}{\text{MAX}} \{ h(x_{i})\}$ to be the sub-network of $f$ which maps a point set in $[0, 1]^{m}$ to a $K$-dimensional vector. Then the following theorem says that small corruptions or extra noise points in the input set are not likely to alter the output of PointNet.</p>
+
+<hr />
+
+<p><strong>Theorem 2.</strong> <em>Suppose $\textbf{u} : \mathcal{X} \rightarrow \mathbb{R}^{K}$ such that $\textbf{u} = \underset{x_{i} \in S}{\text{MAX}} \{ h(x_{i}) \}$ and $f = \gamma \circ \textbf{u}$. Then,</em></p>
+
+<ol>
+  <li>$\forall S$,  $\exists \,\mathcal{C}_{S}$,  $\mathcal{N}_{S} \subseteq \mathcal{X}$,  $f(T) = f(S)$  if  $\mathcal{C}<em>{S} \subseteq T \subseteq \mathcal{N}</em>{S}$</li>
+  <li>$\vert \mathcal{C}_{S} \vert \leq K$</li>
+</ol>
+
+<hr />
+
+<p>The first says that $f(S)$ is unchanged up to the input corruption if all points in $\mathcal{C}<em>{S}$ are preserved. Also, it is also unchanged with extra noise added to the input up to $\mathcal{N}</em>{S}$ (i.e. less or additional number of points do not change the function value).</p>
+
+<p>The second tells us that $\mathcal{C}<em>{S}$ contains only a bounded number of points, determined by $K$ which is the dimensionality of the output of the function $h : \mathbb{R}^{N} \rightarrow \mathbb{R}^{K}$. That is, $<strong>f(S)$ is in fact totally determined by a finite subset $\mathcal{C}_{S} \subseteq S$ of less or equal to $K$ elements.</strong> Thus, we call $\mathcal{C}</em>{S} \subseteq S$ the <em>critical point set</em> of $S$ and $K$ the <em>bottleneck dimension</em> of $f$.</p>
+
+<center>
+    <img class="img-fluid" src="/assets/post-images/PointNet/fig6.png" />
+</center>
+<p><span class="caption text-muted">Figure 6. <b>Critical points and upper bound shape</b>.</span></p>
+
+<p>Conditioned on the continuity of $h$, this theorem explains the robustness of PointNet w.r.t point perturbation, corruption and extra noise points. This can be summarized as the following intuition:</p>
+
+<blockquote>
+  <p><strong>PointNet learns to summarize a shape by a sparse set of key points.</strong></p>
+</blockquote>
+
+<h1 id="conclusion">Conclusion</h1>
+
+<p>This paper proposes a novel deep neural network <em>PointNet</em> which directly consumes unordered set of points, aggregates both local and global features. <em>PointNet</em> paves the way of utilizing unstructured point cloud data by providing a unified approach to a number of 3D recognition tasks including object classification, part segmentation and semantic segmentation. The experimental results show that <em>PointNet</em> achieves on par or better performance than state of the arts on standard benchmarks.</p>
+:ET
