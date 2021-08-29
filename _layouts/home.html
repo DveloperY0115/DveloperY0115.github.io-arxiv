@@ -24,53 +24,42 @@ use_math: true
       </div>
     </div>
   </header>
+</header>
 
-  <div class="container">
+<div class="container">
+  <h1>Featured</h1>
 
-    {{ content }}
+  <hr>
 
-    <h1>Featured</h1>
+  <section class="cards">
+    <!-- Home Post List -->
+    {% for post in site.posts limit : 12 %}
 
-    <hr>
-
-    <div class="card-columns">
-
-      <!-- Home Post List -->
-      {% for post in site.posts limit : 10 %}
-
-      <div class="card">
-        <img class="card-img-top" src="{{ post.background }}" />
-        <div class="card-body d-flex flex-column">
+    <div class="card">
+      <img class="card-header" src="{{ post.background }}" />
+      <div class="card-body">
+        <div class="card-body-header">
           <a href="{{ post.url | prepend: site.baseurl | replace: '//', '/' }}">
             <h5 class="card-title">{{ post.title }}</h5>
           </a>
-          <div class="mt-auto">
-            <small class="card-text">Posted by
-              {% if post.author %}
-              {{ post.author }}
-              {% else %}
-              {{ site.author }}
-              {% endif %}
-              on
-              {{ post.date | date: '%B %d, %Y' }}
-            </small>
-          </div>
         </div>
-        <div class="card-footer">
-          <small class="text-muted">{% include read_time.html content=post.content %}</small>
+        <div class="card-body-description">
+          <small class="card-date">
+            Posted by
+            {% if post.author %}
+            {{ post.author }}
+            {% else %}
+            {{ site.author }}
+            {% endif %}
+            <br>
+            on {{ post.date | date: '%B %d, %Y' }}
+          </small>
         </div>
       </div>
-
-      {% endfor %}
-
     </div>
 
-    <h1>Papers (In Dev)</h1>
+    {% endfor %}
 
-    <hr>
+  </section>
 
-    <div class="card-deck">
-
-    </div>
-  </div>
-  </div>
+</div>
