@@ -31,35 +31,36 @@ use_math: true
 
   <hr>
 
-  <section class="cards">
-    <!-- Home Post List -->
-    {% for post in site.posts limit : 12 %}
+  <div class="row">
+    <div class="col-lg-12 col-md-3 mx-auto">
+      <!-- Home Post List -->
+      {% for post in site.posts limit : 12 %}
 
-    <div class="card">
-      <img class="card-header" src="{{ post.background }}" />
-      <div class="card-body">
-        <div class="card-body-header">
-          <a href="{{ post.url | prepend: site.baseurl | replace: '//', '/' }}">
-            <h5 class="card-title">{{ post.title }}</h5>
-          </a>
-        </div>
-        <div class="card-body-description">
-          <small class="card-date">
-            Posted by
-            {% if post.author %}
-            {{ post.author }}
-            {% else %}
-            {{ site.author }}
-            {% endif %}
-            <br>
-            on {{ post.date | date: '%B %d, %Y' }}
-          </small>
+      <div class="card">
+        <img class="card-header" src="{{ post.background }}" />
+        <div class="card-body">
+          <div class="card-body-header">
+            <a href="{{ post.url | prepend: site.baseurl | replace: '//', '/' }}">
+              <h5 class="card-title">{{ post.title }}</h5>
+            </a>
+          </div>
+          <div class="card-body-description">
+            <small class="card-date">
+              Posted by
+              {% if post.author %}
+              {{ post.author }}
+              {% else %}
+              {{ site.author }}
+              {% endif %}
+              <br>
+              on {{ post.date | date: '%B %d, %Y' }}
+            </small>
+          </div>
         </div>
       </div>
+
+      {% endfor %}
     </div>
-
-    {% endfor %}
-
-  </section>
+  </div>
 
 </div>
