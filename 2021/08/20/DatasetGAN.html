@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+  <title>
+    Summary of 'DatasetGAN: Efficient Labeled Data Factory with Minimal Human Effort' - DveloperY0115's Blog
+    
+  </title>
+
+  <meta name="description" content="Motivations">
+
+  <link href="https://fonts.googleapis.com/css?family=Lora:400,700,400italic,700italic" rel="stylesheet" type="text/css">
+  <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+
+  <script src="https://use.fontawesome.com/releases/v5.15.3/js/all.js" crossorigin="anonymous"></script>
+
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="canonical" href="https://dvelopery0115.github.io/2021/08/20/DatasetGAN.html">
+  <link rel="alternate" type="application/rss+xml" title="DveloperY0115's Blog" href="/feed.xml">
+
+  <!-- Syntax highlighting -->
+  <link rel="stylesheet" href="/assets/syntax.css" type="text/css">
+<script>MathJax={"tex":{"inlineMath":[["$","$"],["\\(","\\)"]],"displayMath":[["$$","$$"],["\\[","\\]"]]},"svg":{"fontCache":"global"}}</script><script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script><script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+
+
+<body>
+
+  <!-- Navigation -->
+<nav class="navbar navbar-expand-lg navbar-light fixed-top" id="mainNav">
+  <div class="container">
+    <a class="navbar-brand" href="/">DveloperY0115's Blog</a>
+    <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
+      Menu
+      <i class="fa fa-bars"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarResponsive">
+      <ul class="navbar-nav ml-auto">
+        <li class="nav-item">
+          <a class="nav-link" href="/">Home</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/about">About</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/posts">Posts</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/contact">Contact</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+
+  <!-- Page Header -->
+
+<header class="masthead" style="background-image: url('/assets/post-images/DatasetGAN/fig1.png')">
+  
+    <div class="overlay"></div>
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 col-md-10 mx-auto">
+          <div class="post-heading">
+            <h1>Summary of 'DatasetGAN: Efficient Labeled Data Factory with Minimal Human Effort'</h1>
+            
+            <h2 class="subheading">DatasetGAN: Efficient Labeled Data Factory with Minimal Human Effort (CVPR 2021)</h2>
+            
+            <span class="meta">Posted by
+              <a href="#">Seungwoo Yoo</a>
+              on August 20, 2021 · <span class="reading-time" title="Estimated read time">
+  
+   9 mins  read </span>
+
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-8 col-md-10 mx-auto">
+
+        <h1 id="motivations">Motivations</h1>
+
+<p><img class="img-fluid" src="/assets/post-images/DatasetGAN/fig1.png">
+<span class="caption text-muted">Figure 1. <b>DatasetGAN overview</b>.</span></p>
+
+<ul>
+  <li>Modern deep neural networks are extremely data-hungry, benefiting from training on large-scale datasets, which are time consuming to annotate.</li>
+  <li>Recently, semi-supervised learning has been a popular approach in the tasks of reducing the need for labeled data, by instead using a large unlabeled dataset.</li>
+  <li>Several studies on the latent space of GANs (particularly StyleGAN) witnessed that GANs acquire semantic knowledge in their high dimensional latent space, and one can introduce various semantic changes by exploring such latent space.</li>
+</ul>
+
+<h1 id="key-contributions">Key Contributions</h1>
+
+<ul>
+  <li>Introduces DatasetGAN, an automatic procedure to generate massive datsets of high-quality semantically segmented images requiring minimal human effort.</li>
+</ul>
+
+<hr>
+
+<h1 id="tldr">TL;DR</h1>
+
+<p>This work proposes DatasetGAN, a novel way to utilize StyleGAN as a generator for massive scale datasets. With only little human supervision, the trained Style Interpreter architecture can synthesize infinite number of semantic (or keypoint) labels while running in parallel to StyleGAN backbone which generates images corresponding to labels from the Style Interpreter.</p>
+
+<h1 id="methods">Methods</h1>
+
+<p><img class="img-fluid" src="/assets/post-images/DatasetGAN/fig2.png">
+<span class="caption text-muted">Figure 2. <b>Overall architecture of DatasetGAN</b>.</span></p>
+
+<p>This paper introduces DatasetGAN that synthesizes image-annotation pairs. The authors focus on pixel-wise annotation tasks for semantic segmentation and keypoint prediction because these are typical problems that require manually annotated dataset where such annotation is extremely labor-intensive.</p>
+
+<p><strong>The key insight of DatasetGAN is that generative models (e.g. GANs) trained to synthesize highly realistic images must acquire semantic knowledge in their high dimensional latent space.</strong> DatasetGAN is designed to utilize such powerful properties of image GANs. In particular, the authors trained a very simple MLP which maps the feature vector of each pixel to the semantic label on a small, human-labeled segmentation dataset. And they expected this information, acquired by label supervision, to be effectively propagated across the GAN’s latent space.</p>
+
+<p><img class="img-fluid" src="/assets/post-images/DatasetGAN/fig3.png">
+<span class="caption text-muted">Figure 3. <b>Small, detailed human-annotated face and car datasets</b>.</span></p>
+
+<p>Inspite of its simple structure, the proposed architecture is turned out to be powerful. Specifically, the authors <strong>first synthesized a small number of images by utilizing a GAN architecture</strong>, StyleGAN in this case, and <strong>recorded their corresponding latent feature maps</strong>. On top of that, a human annotator labeled these images with a desired set of labels. Using this latent-annotated image pairs, the authors trained <strong>a simple ensemble of MLP classifiers</strong> that take the StyleGAN’s pixel-wise feature vectors, which is referred to as the <em>Style Interpreter</em>. One huge advantage this method takes compared to traditional, annotate-by-hand approaches is that this technique requires only a few annotated examples to achieve good accuracy.</p>
+
+<p>After training the Style Interpreter, the authors used it as a subnetwork which runs in parallel with StyleGAN and outputs semantically segmented images that are ready to be used for training any related computer vision architectures.</p>
+
+<h2 id="prerequisites">Prerequisites</h2>
+
+<p>DatasetGAN uses StyleGAN as the generative backbone because it is capable of synthesizing high quality images. The StyleGAN’s synthesis network maps a latent code $\textbf{z} \in \mathcal{Z}$ drawn from a normal distribution to a realsitic image. Latent code $z$ is first mapped to an intermediate latent code $\text{w} \in \mathcal{W}$ by a mapping function. $\textbf{w}$ is then transformed to $k$ vectors, $\textbf{w}^{1}, \dots, \textbf{w}^{k}$, through $k$ learned affine transformations.</p>
+
+<p>These $k$ transformed latent codes are injected as style information into $k / 2$ synthesis blocks in a progressive fashion (i.e. an image is gradually constructed by fusing style codes each accounting for different aspect into it). Specifically, each synthesis block consists of an upsampling layer and two convolutional layers. Each convolutional layer is followed by an adaptive instance normalization (AdaIN) layer controlled by its corresponding $\textbf{w}^{i}$. In this paper, the output feature maps from the $k$ AdaIN layers are denoted as $\{ S^{0}, S^{1}, \dots, S^{k}\}$.</p>
+
+<h2 id="style-interpreter">Style Interpreter</h2>
+
+<p>In this work, the authors interpreted StyleGAN as a “rendering” engine which takes latent codes representing “graphics attributes” that define what to render.</p>
+
+<p>One important hypothesis which deserves our attention is that:</p>
+
+<blockquote>
+  <p>A flattened array of features that output a particular RGB pixel contains semantically meaningful information for rendering the pixel realistically.</p>
+</blockquote>
+
+<p>Using this as the foundation, the authors upsampled all feature maps $\{ S^{0}, S^{1}, \dots, S^{k} \}$ from AdaIN layers to the highest output resolution (i.e. the resolution of $S^{k}$) and concatenated them to get a 3D feature tensor $S^{*} = (S^{0, *}, S^{1, *}, \dots, S^{k, *})$ where $S^{k, *}$ stands for the upsampled $k$-th feature map and $(\cdot, \cdot)$ denotes concatenation. In this context, each pixel $i$ in the output image has its associated feature  vector $S_{i}^{*} = (S_{i}^{0, *}, S_{i}^{1, *}, \dots, S_{i}^{k, *})$, as shown in figure 2. The authors adopted three-layer MLP classifier on top of each feature vector to predict labels. The weights are shared across all pixels for simplicity.</p>
+
+<h3 id="training-of-style-interpreter">Training (of Style Interpreter)</h3>
+
+<p><img class="img-fluid" src="/assets/post-images/DatasetGAN/fig4.png">
+<span class="caption text-muted">Figure 4. <b>Examples of synthesized images and labels from DatasetGAN for faces and cars</b>.</span></p>
+
+<p>Suppose we have already synthesized few images and annotated them manually. Then the strategy used for training Style Interpreter is as follows:</p>
+
+<p>Since per-pixel feature vectors $S_{i}^{*}$ are of high dimensionality (5056) and the feature map has  high spatial resolution (1024 at most), one cannot consume all image feature vectors in a batch due to the shortage of memory space. The authors came up with the idea of performing random sampling of feature vectors from each image, while ensuring that at least one sample is drawn from each labeled region.</p>
+
+<p>Furthermore, different losses are used for different tasks. For semantic segmentation, the classifier is trained with cross-entropy loss. For keypoint prediction, the authors first built a Gaussian heatmap for each keypoint in the training set and let the MLP to fit the heat value for each pixel. <strong>One important point is that the weights of StyleGAN is fixed during the training procedure (i.e. gradients are not back propagated to the StyleGAN).</strong></p>
+
+<p>The reason for adopting an ensemble of classifier was to amortize the effect of random sampling. In this paper, total $N = 10$ classifiers were trained. The authors used majority voting in each pixel at test time for semantic segmentation. And they averaged the $N$ heat values predicted by each of the $N$ classifiers in the case of keypoint prediction.</p>
+
+<h2 id="datasetgan-as-a-labeled-data-factory">DatasetGAN as a Labeled Data Factory</h2>
+
+<p><img class="img-fluid" src="/assets/post-images/DatasetGAN/fig5.png">
+<span class="caption text-muted">Figure 5. <b>Examples of synthesized images and labels from DatasetGAN for birds, cats, and bedrooms</b>.</span></p>
+
+<p>Once trained, the Style Interpreter can be used as a label-synthesis branch running in parallel to the StyleGAN backbone, forming the entire DatasetGAN architecture. Using the same latent code $\textbf{z} \in \mathcal{Z}$ sampled from StyleGAN’s latent space, we can synthesize both photorealistic image and corresponding semantic label simultaneously. In practice, synthesizing an image-annotation pair requires a forward pass through StyleGAN, which takes 9 seconds on average.</p>
+
+<p>However, StyleGAN occasionally fails introducing noise in the synthesized dataset. The authors noticed that the StyleGAN’s discriminator score is not a robust measure of failure and also found that utilizing their ensemble of classifiers to measure the uncertainty of a synthesized example is a more robust approach. For measurement of uncertainty, this work adopted the Jensen-Shannon (JS) divergence for a pixel. In the case of image uncertainty, they summed over all image pixels. According to the computed uncertainty, top 10% most uncertain images were filtered out.</p>
+
+<h1 id="conclusion">Conclusion</h1>
+
+<p><img class="img-fluid" src="/assets/post-images/DatasetGAN/fig6.png">
+<span class="caption text-muted">Figure 6. <b>3D Application</b>.</span></p>
+
+<p>The authors proposed a simple but powerful approach for semi-supervised learning with few labels. They explored the learned latent space of the state-of-the-art generative model StyleGAN, and developed an effective classifier which can be trained on only a few human-annotated images. The DatasetGAN, consists of StyleGAN backbone and a novel Style Interpeter architecture, is able to synthesize large labeled datasets which then can be used for training various computer vision architectures.</p>
+
+
+        <hr>
+
+        <div class="clearfix">
+
+          
+          <a class="btn btn-primary float-left" href="/2021/08/19/e4e.html" data-toggle="tooltip" data-placement="top" title="Summary of 'Designing an Encoder for StyleGAN Image Manipulation'">← Previous<span class="d-none d-md-inline">
+              Post</span></a>
+          
+          
+          <a class="btn btn-primary float-right" href="/2021/08/22/GANSpace.html" data-toggle="tooltip" data-placement="top" title="Summary of 'GANSpace: Discovering Interpretable GAN Controls'">Next<span class="d-none d-md-inline">
+              Post</span> →</a>
+          
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Footer -->
+
+<hr>
+
+<footer>
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-8 col-md-10 mx-auto">
+        <ul class="list-inline text-center">
+          
+          <li class="list-inline-item">
+            <a href="mailto:dreamy1534@kaist.ac.kr">
+              <span class="fa-stack fa-lg">
+                <i class="fas fa-circle fa-stack-2x"></i>
+                <i class="far fa-envelope fa-stack-1x fa-inverse"></i>
+              </span>
+            </a>
+          </li>
+          
+          
+          
+          
+          
+          
+        </ul>
+        <p class="copyright text-muted">Copyright © Seungwoo Yoo 2023</p>
+      </div>
+    </div>
+  </div>
+</footer>
+
+
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/assets/vendor/startbootstrap-clean-blog/js/scripts.js"></script>
+
+<script src="/assets/scripts.js"></script>
+
+
+
+
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-XXXXXXXXX-X"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-XXXXXXXXX-X');
+</script>
+
+
+
+</body>
+
+</html>

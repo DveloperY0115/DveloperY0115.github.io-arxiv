@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+  <title>
+    Summary of 'Designing an Encoder for StyleGAN Image Manipulation' - DveloperY0115's Blog
+    
+  </title>
+
+  <meta name="description" content="Motivations">
+
+  <link href="https://fonts.googleapis.com/css?family=Lora:400,700,400italic,700italic" rel="stylesheet" type="text/css">
+  <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+
+  <script src="https://use.fontawesome.com/releases/v5.15.3/js/all.js" crossorigin="anonymous"></script>
+
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="canonical" href="https://dvelopery0115.github.io/2021/08/19/e4e.html">
+  <link rel="alternate" type="application/rss+xml" title="DveloperY0115's Blog" href="/feed.xml">
+
+  <!-- Syntax highlighting -->
+  <link rel="stylesheet" href="/assets/syntax.css" type="text/css">
+<script>MathJax={"tex":{"inlineMath":[["$","$"],["\\(","\\)"]],"displayMath":[["$$","$$"],["\\[","\\]"]]},"svg":{"fontCache":"global"}}</script><script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script><script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+
+
+<body>
+
+  <!-- Navigation -->
+<nav class="navbar navbar-expand-lg navbar-light fixed-top" id="mainNav">
+  <div class="container">
+    <a class="navbar-brand" href="/">DveloperY0115's Blog</a>
+    <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
+      Menu
+      <i class="fa fa-bars"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarResponsive">
+      <ul class="navbar-nav ml-auto">
+        <li class="nav-item">
+          <a class="nav-link" href="/">Home</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/about">About</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/posts">Posts</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/contact">Contact</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+
+  <!-- Page Header -->
+
+<header class="masthead" style="background-image: url('/assets/post-images/e4e/fig1.png')">
+  
+    <div class="overlay"></div>
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 col-md-10 mx-auto">
+          <div class="post-heading">
+            <h1>Summary of 'Designing an Encoder for StyleGAN Image Manipulation'</h1>
+            
+            <h2 class="subheading">Designing an Encoder for StyleGAN Image Manipulation (SIGGRAPH 2021)</h2>
+            
+            <span class="meta">Posted by
+              <a href="#">Seungwoo Yoo</a>
+              on August 19, 2021 · <span class="reading-time" title="Estimated read time">
+  
+   23 mins  read </span>
+
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-8 col-md-10 mx-auto">
+
+        <h1 id="motivations">Motivations</h1>
+
+<p><img class="img-fluid" src="/assets/post-images/e4e/fig1.png">
+<span class="caption text-muted">Figure 1. <b>Real image editing via StyleGAN inversion using the proposed method in this paper</b>.</span></p>
+
+<ul>
+  <li>Applying pretrained unconditional generators (e.g. GANs) on real image editing is still an on-going problem as it requires the inversion of the images (to be edited) into the appropriate latent space. Therefore, a high-quality inversion scheme is necessary for such editing techniques.</li>
+  <li>High-quality inversion is characterized by two aspects: (1) <em>reconstruction</em> of input image from its latent code encoded by the encoder, (2) <em>editability</em> achieved by leveraging the editing capabilities of the latent space to obtain meaningful and realistic edits of the input image.</li>
+  <li>The quality of reconstruction can be evaluated by measuring two properties: <em>distortion</em> (per-image input-output similarity) and <em>perceptual quality</em> (how realistic the reconstructed image is). Ideally, the lower the distortion and the higher the perceptual quality is the better.</li>
+  <li>However, it turns out that the three quantities - distortion, perceptual quality, and editability - are closely related to each other. And the trade-off between these three should be analyzed thoroughly.</li>
+</ul>
+
+<h1 id="key-contributions">Key Contributions</h1>
+
+<ul>
+  <li>Analyzes the complex latent space of StyleGAN and suggests a novel view of its structure.</li>
+  <li>Presents the innate tradeoffs among distortion, perception, and editability.</li>
+  <li>Characterizes the tradeoffs and design two means for an encoder to control them.</li>
+  <li>Presents <em>e4e</em>, a novel encoder specifically designed to allow for the subsequent editing of inverted real images.</li>
+</ul>
+
+<hr>
+
+<h1 id="tldr">TL;DR</h1>
+
+<p>This paper proposes a novel approach for GAN inversion by designing an encoder along with training schemes that guide the encoder to embedd images into StyleGAN’s latent space. Also, this paper provides thorough  analysis on the trade-offs among the quantities that are directly related to the quality of decoded images - distortion, perceptual quality, and editability.</p>
+
+<h1 id="methods">Methods</h1>
+
+<h2 id="terminology">Terminology</h2>
+
+<p>Briefly speaking, StyleGAN is a model consists of two key components:</p>
+
+<ol>
+  <li>A mapping function that maps a latent code $\textbf{z} \in \mathcal{Z} = \mathcal{N} (\mu, \sigma^{2})$ into a <em>style code $\textbf{w} \in \mathcal{W} \subsetneq \mathbb{R}^{512}$,</em>
+</li>
+  <li>A generator (synthesis network) which takes the style code, replicated several times, as input, and generates an image.</li>
+</ol>
+
+<p>From now on, the distribution $\mathcal{W}$ will be called the <em>range</em> of the mapping function.</p>
+
+<p>It has been empirically shown that a single latent vector is not powerful enough to represent an image that is inverted into StyleGAN’s latent space. To circumvent such issue, one possible solution for it is to introduce more latent vectors, say $k$ number of them, different from each other. Then the space obtained by extension can be denoted by $\mathcal{W}^{k} \subsetneq \mathbb{R}^{k \times 512}$ where $k$ is the number of style inputs of the generator.</p>
+
+<p><img class="img-fluid" src="/assets/post-images/e4e/fig2.png">
+<span class="caption text-muted">Figure 2. <b>An illustration of different latent spaces in 1D and 2D</b>.</span></p>
+
+<p>We can push the boundary of expressiveness even further by inputting style codes that are not from the true distribution of $\mathcal{W}$. Such extension can be achieved by either taking a single style code and replicate it over the blocks of StyleGAN, or taking $k$ different individual codes. Such codes are denoted by $\mathcal{W}_{*}$ and $\mathcal{W}_{*}^{k}$, respectively.</p>
+
+<p>Finally, the characteristics of different latent spaces can be summarized as follows:</p>
+
+<p><img class="img-fluid" src="/assets/post-images/e4e/table1.png">
+<span class="caption text-muted">Table 1. <b>A concise summary outlining the differenes between various latent spaces</b>.</span></p>
+
+<h2 id="the-gan-inversion-tradeoffs">The GAN Inversion tradeoffs</h2>
+
+<h3 id="preliminaries">Preliminaries</h3>
+
+<p>Most of the research on StyleGAN’s latent code can be categorized into two tasks: <em>GAN inversion</em> and <em>latent space manipulation</em>.</p>
+
+<p>In previous works, the two tasks were considered as follows.</p>
+
+<ol>
+  <li>
+<em>GAN inversion</em>: Given an image $x$, infer a latent code $\textbf{w}$ which is then decoded by the generator to reconstruct the input as closely as possible.</li>
+  <li>
+<em>Latent space manipulation</em>: Given a latent code $\textbf{w}$, infer a new latent code $\textbf{w}^{\prime}$, such that the image $G(\textbf{w}^{\prime})$ synthesized by decoding the code is an image which can be obtained by applying semantically meaningful modification to $G(\textbf{w})$.</li>
+</ol>
+
+<p>In fact, inverting GAN alone has less practical significance compared to that of editing images by controlling their corresponding latent vectors. <strong>What one could do with the network that takes an image and only outputs (ideally) complete replica of the input?</strong></p>
+
+<p>Similarily, image manipulation by exploiting latent space would be useless if edited images are not realistic when perceived by ourselves. <strong>Who wants an image editor that introduces too much distortions (or noises) as you modify certain aspect of images?</strong> Therefore, the desirable way is to find the sweet spot that will enable us to modify images in while keeping them visually plausible.</p>
+
+<p>Therefore, the GAN inversion methods should be evaluated by taking both reconstruction and editability into account.</p>
+
+<p>In this work, the reconstruction is assumed to have two distinct properties - <em>distortion</em> and <em>perceptual quality</em>. Distortion is rigorously defined as $\mathbb{E}_{x \sim p_{X}}[\Delta (x, G(\textbf{w}))]$  where $p_{X}$ is the distribution of the real images, and $\Delta(x, G(\textbf{w}))$ is an image-space difference measure (often $\ell_{1}$ or $\ell_{2}$) between images $x$ and $G(\textbf{w})$. On the other hand, perceptual quality measures how realistic the reconstructed images are.</p>
+
+<p>Speaking of editability, it is desirable to have latent space where one can find latent space directions corresponding to disentangled semantic edits in the image-space. At the same time, modifications introduced by exploring such latent space should not harm the perceptual quality of the output images.</p>
+
+<h3 id="distortion-editability--distortion-perception-trade-offs">Distortion-Editability &amp; Distortion-Perception Trade-offs</h3>
+
+<p>Let us analyze the distortion, perceptual quality, and editability of different regions in StyleGAN’s latent space. As mentioned previously, $\mathcal{W}_{*}^{k}$ differs from $\mathcal{W}$ in two ways. Specifically:</p>
+
+<ol>
+  <li>$\mathcal{W}_{*}^{k}$ may contain different style codes at different style-modulation layers.</li>
+  <li>Each individual style code is not bound to the true distribution of $\mathcal{W}$, but can take any value from $\mathbb{R}^{512}$.</li>
+</ol>
+
+<p>Several studies on the properties of such spaces reveal that $\mathcal{W}_{*}^{k}$ achieves lower (i.e. better) distortion than $\mathcal{W}$. Moreover, the authors found that $\mathcal{W}$ is more editable. The observation is illustrated in the figure below. Evidently, there is inherent trade-off between distortion and editability.</p>
+
+<p><img class="img-fluid" src="/assets/post-images/e4e/fig3.png">
+<span class="caption text-muted">Figure 3. <b>The editability gap between different latent spaces</b>.</span></p>
+
+<p>Since StyleGAN is originally trained in the $\mathcal{W}$ space, it is not a surprise that $\mathcal{W}$ is more well-behaved and has better perceptual quality compared to its $\mathcal{W}_{*}^{k}$ counterpart. In contrast, note that the higher dimensionality of $\mathcal{W}_{*}^{k}$ and the structure of StyleGAN gave $\mathcal{W}_{*}^{k}$ greater expressive power.</p>
+
+<p><img class="img-fluid" src="/assets/post-images/e4e/fig4.png">
+<span class="caption text-muted">Figure 4. <b>An example of the distortion-perception trade-off</b>.</span></p>
+
+<p>The authors claim that the distortion-editability and the distortion-perception trade-offs also exist within the $\mathcal{W}_{*}^{k}$. Furthermore, the trade-offs are controlled by the proximity to $\mathcal{W}$. Precisely, as $\mathcal{W}_{*}^{k}$ gets closer to $\mathcal{W}$, the distortion worsens while the editability and perceptual quality improve. That being said, it is desirable to find means those would allow one to control the proximity of an encoded image to $\mathcal{W}$. From the next section, we will discuss two principles and mechanisms for controlling this proximity.</p>
+
+<h2 id="designing-an-encoder">Designing an encoder</h2>
+
+<p>Learned from the several observations, this paper present principles for designing an encoder and novel training scheme to explicitly address the proximity to $\mathcal{W}$ While there are two mainstreams of GAN inversion methodologies: (i) latent code optimization, (ii) encoder-based methods, this paper focuses on the latter for several reasons:</p>
+
+<ol>
+  <li>Encoder-based methods are way more faster as they infer a latent code with a single forward pass. → optimization based methodologies are expensive since they work in per-image basis.</li>
+  <li>Due to the piece-wise smoothness of CNNs, the output of an encoder lies in a tight space that is more suitable for editing. → an optimization based inversion may encode an image to an arbitrary point in the latent space.</li>
+</ol>
+
+<p>From now on, we will be discussing the two principles for controlling the proximity to $\mathcal{W}$, where each is defined using a dedicated training paradigm to encourage the encoder to map into regions in $\mathcal{W}_{*}^{k}$ that lie close to $\mathcal{W}$. Moreover, these principles were found to be most effective when applied jointly.</p>
+
+<h3 id="minimize-variation-from-mathcalw">Minimize Variation (from $\mathcal{W}$)</h3>
+
+<p>One way to get closer to $\mathcal{W}$ is to encourage the inferred $\mathcal{W}_{*}^{k}$ latent codes to lie closer to $\mathcal{W}_{*}$. In other words, we should minimize the variance between the different style codes. To this end, the authors propose a novel ‘progressive’ training scheme.</p>
+
+<p>Let $E(x) = (\textbf{w}_{0}, \textbf{w}_{1}, \dots, \textbf{w}_{N-1})$ denote the output of the encoder, where $N$ is the number of style-modulation layers. Encoders are normally trained directly into $\mathcal{W}_{*}^{k}$, that is, they learn each $\textbf{w}_{i}$ separately and simultaneously. Apart from such approach, this paper suggests to infer a single latent code, namely $\textbf{w}$, and a set of offsets from $w$. Formally, the encoder will learn to output a collection of latent codes of form $E(x) = (\textbf{w}, \textbf{w} + \Delta_{1}, \dots, \textbf{w} + \Delta_{N-1})$.</p>
+
+<p>Specifically, $\Delta_{i}$’s are initialized to zero at the beginning and the encoder is trained to infer a single $\mathcal{W}_{*}$ code. Then the network is gradually allowed to learn a different $\Delta_{i}$ for each $i$ sequentially. This allows the encoder to gradually expand from $\mathcal{W}_{*}$ towards $\mathcal{W}_{*}^{k}$. Recalling the structure of StyleGAN’s synthesis network and the semantic meaning of each input layer of it, the proposed training scheme allows the encoder to first learn a coarse reconstruction of the input image and then to gradually refine it by optimizing the offset vectors.</p>
+
+<p>The authors observed that low frequency details greatly affect the distortion quality. Therefore, the suggested progressive training scheme can be thought to be doing the following:</p>
+
+<p><img class="img-fluid" src="/assets/post-images/e4e/fig5.png">
+<span class="caption text-muted">Figure 5. <b>Another illustration of latent spaces in 1D and 2D</b>. Moving along the direction of red arrow (toward diagonal line) brings a latent vector closer to $\mathcal{W}_{*}$, while the directions of blue arrows are the paths to get closer to the distribution $\mathcal{W}^{2}$.</span></p>
+
+<blockquote>
+  <p>“It first focuses on improving the low frequency distortion by tuning the coarse-level offsets, and then it gradually improves the offsets corresponding to higher frequency details over time.”</p>
+</blockquote>
+
+<p>With the visual aid of figure 5, this process is equivalent to starting from a style code lying on the main diagonal and then slightly diverging from it by allowing small perturbations. <strong>Keep in mind that the encoder outputs offset vectors not latents directly.</strong></p>
+
+<p>To explicitly enforce a proximity to $\mathcal{W}_{*}$, the authors added an $L_{2}$ delta-regularization loss:</p>
+
+<p>$$\mathcal{L}_{\text{d-reg}} (w) = \sum_{i=1}^{N-1} \Vert \Delta_{i} \Vert_{2}.$$</p>
+
+<h3 id="minimize-deviation-from-mathcalwk">Minimize Deviation From $\mathcal{W}^{k}$</h3>
+
+<p>Another way to make latents get closer to $\mathcal{W}$ is to encourage the $\mathcal{W}_{*}^{k}$ latent codes obtained by the encoder to lie closer to $\mathcal{W}^{k}$. We can achieve this by enforcing the individual style codes to lie within the actual distribution of $\mathcal{W}$. To this end, the authors use a <em>latent discriminator</em> trained in an adversarial manner to discriminate between real samples from the $\mathcal{W}$ space and the encoder’s learned latent codes.</p>
+
+<p>Guided by such latent discriminator, the encoder will learn to infer latent codes lying in $\mathcal{W}$ as opposed to $\mathcal{W}_{*}$. This paper uses a single latent discriminator, denoted $D_{\mathcal{W}}$, which operates on each latent code entry separately. The discriminator iterates over every inferred latent code $E(x)_{i}$ computing the GAN loss for each of them. We then simply take the average over all $i$-s.</p>
+
+<p>Precisely, the form of used GAN loss (non-saturating GAN loss with $R_{1}$ regularization) is as follows:</p>
+
+<p>$$
+\begin{gather}
+\mathcal{L}<em>{\text{adv}}^{D} = - \underset{\textbf{w} \sim \mathcal{W}}{\mathbb{E}} [\log D</em>{\mathcal{W}}(\textbf{w})] - \underset{x \sim p_{X}}{\mathbb{E}} [\log (1 - D_{\mathcal{W}} (E(x)<em>{i}))] + \\ \frac{\gamma}{2} \underset{\textbf{w} \sim \mathcal{W}}{\mathbb{E}} \Big[ \Vert \nabla</em>{\textbf{w}} D_{\mathcal{W}} (\textbf{w}) \Vert_{2}^{2} \Big], <br>
+\mathcal{L}<em>{\text{adv}}^{E} = - \underset{x \sim p</em>{X}}{\mathbb{E}} [\log D_{\mathcal{W}}(E(x)_{i})].
+\end{gather}
+$$</p>
+
+<h2 id="e4e-encoder-for-editing">e4e: Encoder for Editing</h2>
+
+<p><img class="img-fluid" src="/assets/post-images/e4e/fig6.png">
+<span class="caption text-muted">Figure 6. <b>The overall structure of e4e network</b>.</span></p>
+
+<p>The high-level design of the encoder is illustrated above. The encoder denoted <em>e4e</em> (<em>“Encoder for Editing”,</em> reflecting its purpose), builds upon the Pixel2Style2Pixel (pSp) encoder. Unlike the original pSp encoder that generates $N$ style codes at the same time, as described earlier, <em>e4e</em> generates a single base style code, denoted by $w$, along with a series of $N-1$ offset vectors. These offsets are then summed up with the base style code $w$ to yield the final $N$ style codes which are now ready to be fed into the fixed, pre-trained StyleGAN2 generator.</p>
+
+<h3 id="losses">Losses</h3>
+
+<p>In the following section, we will go over each loss adopted for specific purpose. Briefly speaking, we need losses that are able to:</p>
+
+<ul>
+  <li>lower the distortion, by keeping the input and output images to be similar</li>
+  <li>increase the perceptual quality and editability by encouraging the generated style codes to remain close to $\mathcal{W}$</li>
+</ul>
+
+<p><strong>&lt; Distortion &gt;</strong></p>
+
+<p>To control the distortion introduced by the encoder, this paper borrows one of the key ideas presented in pSp: the identity loss.</p>
+
+<p>Originally, the identity loss is designed to assist the accurate inversion of real images in the facial domain. The authors push this further and generalize it, and end up introducing a novel $\mathcal{L}_{\text{sim}}$ loss defined as:</p>
+
+<p>$$\mathcal{L}_{\text{sim}} (x) = 1 - \langle C(x), C(G(e4e(x))) \rangle,$$</p>
+
+<p>where $C$ is a ResNet-50 model trained with MOCOv2 dataset and $G$ is the pretrained StyleGAN2 generator. This loss encourages the model to predict latent codes that will be decoded to an image whose feature embedding has high cosine similarity with that of the original image. One powerful aspect of $\mathcal{L}_{\text{sim}}$ is that it can be applied to any image domain thanks to the general nature of the extracted features. <em>(Disclaimer: For facial domain, the authors used the original identity loss as in pSp, and employed a pre-trained ArcFace facial recognition network in the place of ResNet-50.)</em></p>
+
+<p>On top of that, the commonly used $\mathcal{L}_{2}$ and $\mathcal{L}_{\text{LPIPS}}$ losses are appended to learn both pixel-wise and perceptual similarities. Finally, the distortion loss is defined as:</p>
+
+<p>$$\mathcal{L}_{\text{dist}} (x) = \lambda_{l2} \mathcal{L}_{2} (x) + \lambda_{\text{LPIPS}} \mathcal{L}_{\text{LPIPS}} (x) + \lambda_{\text{sim}} \mathcal{L}_{\text{sim}} (x).$$</p>
+
+<p><strong>&lt; Perceptual quality and editability &gt;</strong></p>
+
+<p>Keeping the inferred latent space proximate to StyleGAN’s range $\mathcal{W}$ is the key to increase the perceptual quality and editability. To do so, this paper employs the two losses discussed earlier:</p>
+
+<ol>
+  <li>A delta-regularization loss to ensure proximity to $\mathcal{W}_{*}$ when learning the offsets $\Delta_{i}$</li>
+  <li>An adversarial loss using the latent discriminator that encourages each learned style code to lie within the distribution $\mathcal{W}$.</li>
+</ol>
+
+<p>To summarize, the loss for ensuring high perceptual quality and editability is defined as:</p>
+
+<p>$$\mathcal{L}_{\text{edit}} (x) = \lambda_{\text{d-reg}} \mathcal{L}_{\text{d-reg}} (x) + \lambda_{\text{adv}} \mathcal{L}_{\text{adv}}(x),$$</p>
+
+<p>where $\mathcal{L}_{\text{d-reg}}$ and $\mathcal{L}_{\text{adv}}$ are defined as in the previous section.</p>
+
+<p><strong>&lt; Total loss &gt;</strong></p>
+
+<p>At last, the overall loss is defined as a weighted (linear) combination of the distortion and editability losses:</p>
+
+<p>$$\mathcal{L} (x) = \mathcal{L}_{\text{dist}} (x) + \lambda_{\text{edit}} \mathcal{L}_{\text{edit}} (x).$$</p>
+
+<h1 id="evaluation">Evaluation</h1>
+
+<p><img class="img-fluid" src="/assets/post-images/e4e/fig7.png">
+<span class="caption text-muted">Figure 7. <b>A triplets of a source image, its inversion, and an edit applied on the inverted image across multiple domains</b>.</span></p>
+
+<p>Speaking of evaluation, there is no doubt that this is challenging. The goal is a proper evaluation method which can evaluate a trade-off between distortion and two other qualities - perceptual quality and editability. Every single one of them is hard to evaluate since they are perceptual in essence, thus objectively measuring &amp; numericalizing these is non-trivial task.</p>
+
+<p>It is worth noting that there are several widely used methods for evaluating perceptual quality. These methods measure the discrepancy between the real and generated distributions using algorithms, listing few of them here:</p>
+
+<ul>
+  <li>FID (Frechet Inception Distance)</li>
+  <li>SWD (Sliced Wasserstein Distance)</li>
+  <li>IS (Inception Score)</li>
+</ul>
+
+<p>However these methods have some drawbacks:</p>
+
+<ol>
+  <li>Do not always agree with human perception</li>
+  <li>Affected by distortion</li>
+</ol>
+
+<p>In the case of editability, evaluation becomes even more difficult task since the quality of an edited image should be evaluated as a function of the magnitude of the change introduced by editing. Moreover, qualitative measures often tend to be biased.</p>
+
+<p>For evaluation, the following methods were used:</p>
+
+<h2 id="distortion">Distortion</h2>
+
+<ul>
+  <li>$L_{2}$ reconstruction loss</li>
+  <li>$\text{LPIPS}$</li>
+</ul>
+
+<h2 id="perceptual-quality">Perceptual quality</h2>
+
+<p>To quantitatively evaluate the results, the authors measured:</p>
+
+<ul>
+  <li>FID</li>
+  <li>SWD</li>
+</ul>
+
+<p>between the distributions of the real and reconstructed images.</p>
+
+<h2 id="editability">Editability</h2>
+
+<p><img class="img-fluid" src="/assets/post-images/e4e/fig8.png">
+<span class="caption text-muted">Figure 8. <b>Inversion followed by a series of edits</b>. Note that D is the configuration which uses the complete e4e method.</span></p>
+
+<p>We previously defined editability as the ability to perform latent-space editing using any arbitrary technique while maintaining high-visual quality of the image obtained using the edited latent code.</p>
+
+<p><strong>For editing, the authors first used their GAN inversion method followed by several existing editing techniques such as:</strong></p>
+
+<hr>
+
+<ul>
+  <li>
+<strong>StyleFlow</strong>: <em>R. Abdal, P. Zhu, N. Mitra, and P. Wonka. Styleflow: Attribute-conditioned exploration of stylegan-generated im- ages using conditional continuous normalizing flows, 2020.</em>
+</li>
+  <li>
+<strong>InterFaceGAN</strong>: <em>Y. Shen, J. Gu, X. Tang, and B. Zhou. Interpreting the latent space of gans for semantic face editing.</em>
+</li>
+  <li>
+<strong>GANSpace</strong>: <em>E. H¨ark¨onen, A. Hertzmann, J. Lehtinen, and S. Paris. Ganspace: Discovering interpretable gan controls.</em>
+</li>
+  <li>
+<strong>SeFa</strong>: <em>Y. Shen and B. Zhou. Closed-form factorization of latent semantics in gans.</em>
+</li>
+</ul>
+
+<hr>
+
+<p>After performing inversion, the authors applied the listed techniques to edit the code to introduce semantic modifications such as pose, gender, and age for the human facial domain. This modified code is then passed to StyleGAN to generate images. These images are evaluated using FID and SWD. Note that FID and SWD are applied differently in the previous section:</p>
+
+<ol>
+  <li>Perceptual quality: FID (or SWD) measured by computing the discrepancy between real and <em>reconstructed</em> images</li>
+  <li>Editability: FID (or SWD) but measured by computing the discrepancy between real (original) and <em>edited</em> images</li>
+</ol>
+
+<h2 id="latent-editing-consistency">Latent Editing Consistency</h2>
+
+<p><img class="img-fluid" src="/assets/post-images/e4e/fig9.png">
+<span class="caption text-muted">Figure 9. <b>An illustration of the Latent Editing Consistency.&lt;/span&gt;</b></span></p>
+
+<p>Apart from the existing evaluation metrics, the authors present a new evaluation metric, called <em>latent editing consistency</em> (LEC) which combines two key components of GAN inversion methods meant for latent space editing:</p>
+
+<ol>
+  <li>A component for capturing the extent for which the inversion matches the true inverse of the generator.</li>
+  <li>Another component for capturing how well-behaved the edits of the inversion outputs are.</li>
+</ol>
+
+<p>And the distance measured in the latent space for quantifying LEC can be defined as the following:</p>
+
+<p>$$\text{LEC}(f_{\theta}) = \underset{x}{\mathbb{E}} \Vert E(x) - f^{-1}_{\theta} (E(G(f_{\theta}(E(x)))))\Vert_{2},$$</p>
+
+<p>where $E$ is an encoder and $f_{\theta}(w)$ is an invertible semantic latent editing function parametrized by $\theta$. The purpose of doing the inverse editing is to let LEC capture how the inherent inversion errors translate to errors in the subsequent editing. In the optimal case, a well-behaved encoder should yield a small LEC difference in the latent space.</p>
+
+<h1 id="conclusion">Conclusion</h1>
+
+<p>In this work, the authors analyzed the structure of StyleGAN’s latent space, a very huge and complex space, in the context of GAN inversion literature. Based on several observations, this paper proposes a novel encoder architecture which can transform a natural image into a proper latent vector lying in the latent space of StyleGAN. At the same time, the authors suggest clever training strategies that better encourage the encoder to learn such behavior. On top of that, the authors validate the encoder by conducting several user studies as well as computing evaluation metrics including the novel method introduced by themselves.</p>
+
+
+        <hr>
+
+        <div class="clearfix">
+
+          
+          <a class="btn btn-primary float-left" href="/2021/08/16/PointNet.html" data-toggle="tooltip" data-placement="top" title="Summary of 'PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation'">← Previous<span class="d-none d-md-inline">
+              Post</span></a>
+          
+          
+          <a class="btn btn-primary float-right" href="/2021/08/20/DatasetGAN.html" data-toggle="tooltip" data-placement="top" title="Summary of 'DatasetGAN: Efficient Labeled Data Factory with Minimal Human Effort'">Next<span class="d-none d-md-inline">
+              Post</span> →</a>
+          
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Footer -->
+
+<hr>
+
+<footer>
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-8 col-md-10 mx-auto">
+        <ul class="list-inline text-center">
+          
+          <li class="list-inline-item">
+            <a href="mailto:dreamy1534@kaist.ac.kr">
+              <span class="fa-stack fa-lg">
+                <i class="fas fa-circle fa-stack-2x"></i>
+                <i class="far fa-envelope fa-stack-1x fa-inverse"></i>
+              </span>
+            </a>
+          </li>
+          
+          
+          
+          
+          
+          
+        </ul>
+        <p class="copyright text-muted">Copyright © Seungwoo Yoo 2023</p>
+      </div>
+    </div>
+  </div>
+</footer>
+
+
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/assets/vendor/startbootstrap-clean-blog/js/scripts.js"></script>
+
+<script src="/assets/scripts.js"></script>
+
+
+
+
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-XXXXXXXXX-X"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-XXXXXXXXX-X');
+</script>
+
+
+
+</body>
+
+</html>

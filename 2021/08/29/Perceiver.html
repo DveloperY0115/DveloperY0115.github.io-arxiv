@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+  <title>
+    Summary of 'Perceiver: General Perception with Iterative Attention' - DveloperY0115's Blog
+    
+  </title>
+
+  <meta name="description" content="Motivations">
+
+  <link href="https://fonts.googleapis.com/css?family=Lora:400,700,400italic,700italic" rel="stylesheet" type="text/css">
+  <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+
+  <script src="https://use.fontawesome.com/releases/v5.15.3/js/all.js" crossorigin="anonymous"></script>
+
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="canonical" href="https://dvelopery0115.github.io/2021/08/29/Perceiver.html">
+  <link rel="alternate" type="application/rss+xml" title="DveloperY0115's Blog" href="/feed.xml">
+
+  <!-- Syntax highlighting -->
+  <link rel="stylesheet" href="/assets/syntax.css" type="text/css">
+<script>MathJax={"tex":{"inlineMath":[["$","$"],["\\(","\\)"]],"displayMath":[["$$","$$"],["\\[","\\]"]]},"svg":{"fontCache":"global"}}</script><script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script><script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+
+
+<body>
+
+  <!-- Navigation -->
+<nav class="navbar navbar-expand-lg navbar-light fixed-top" id="mainNav">
+  <div class="container">
+    <a class="navbar-brand" href="/">DveloperY0115's Blog</a>
+    <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
+      Menu
+      <i class="fa fa-bars"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarResponsive">
+      <ul class="navbar-nav ml-auto">
+        <li class="nav-item">
+          <a class="nav-link" href="/">Home</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/about">About</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/posts">Posts</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/contact">Contact</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+
+  <!-- Page Header -->
+
+<header class="masthead" style="background-image: url('/assets/post-images/Perceiver/fig2.png')">
+  
+    <div class="overlay"></div>
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 col-md-10 mx-auto">
+          <div class="post-heading">
+            <h1>Summary of 'Perceiver: General Perception with Iterative Attention'</h1>
+            
+            <h2 class="subheading">Perceiver: General Perception with Iterative Attention (ICML 2021)</h2>
+            
+            <span class="meta">Posted by
+              <a href="#">Seungwoo Yoo</a>
+              on August 29, 2021 · <span class="reading-time" title="Estimated read time">
+  
+   16 mins  read </span>
+
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-8 col-md-10 mx-auto">
+
+        <h1 id="motivations">Motivations</h1>
+
+<ul>
+  <li>Biological systems perceive the world by simultaneously processing high-dimensional inputs of various forms such as vision, audition, touch, proprioception, etc. On the other hand, the perception models implemented in deep learning often rely on domain specific assumptions and lack multi-modality. → <strong>Architectures must be redesigned from scratch as their input vary.</strong>
+</li>
+  <li>While the inductive biases such as spatial locality in early vision models were valuable since they could increase the efficiency of learning perceptual models by focusing only on data from certain domain. However, considering that there are lots of large scale datasets available, is such decision - introducing constraints to our model - still valid?</li>
+</ul>
+
+<h1 id="key-contributions">Key Contributions</h1>
+
+<ul>
+  <li>Proposes the <strong>Perceiver</strong>, a model which builds upon Transformers, designed to handle arbitrary configurations of different modalities using a single Transformer-based architecture.</li>
+  <li>Proposes a novel method which combines the ideas from the Transformer and recurrent neural networks, reducing the computation time and memory usage while maintaining flexibility and performance.</li>
+</ul>
+
+<hr>
+
+<h1 id="methods">Methods</h1>
+
+<center>
+    <img class="img-fluid" src="/assets/post-images/Perceiver/fig1.png">
+</center>
+<p><span class="caption text-muted">Figure 1. <b>The Perceiver architecture overview</b>.</span></p>
+
+<h2 id="the-perceiver-architecture">The Perceiver architecture</h2>
+
+<h3 id="overview">Overview</h3>
+
+<p>The architecture consists of two components:</p>
+
+<ol>
+  <li>A cross-attention module which maps a byte array (representing input data) and a latent array to a latent array.</li>
+  <li>A Transformer tower that maps a latent array to a latent array (can be thought as self-attention).</li>
+</ol>
+
+<p>Here, the size of the byte array is determined by the input data and is generally large (e.g., images from ImageNet dataset at resolution 224 have 50,176 pixels), while <strong>the size of the latent array is a hyperparameter</strong> which is typically much smaller (e.g., the authors used 512 latents on ImageNet).</p>
+
+<p>The model applies the cross-attention module and the Transformer in an alternative fashion. This is equivalent to repeatedly fusing high-dimensional information of input data into a lower-dimension attention bottleneck. Such low dimensional representation is then used to query the input (byte array) again. This also can be seen as performing a fully end-to-end clustering of the inputs with latent positions as cluster centers.</p>
+
+<p>Since the weights are optionally shared between each instance of the Transformer tower (and between all instances of the cross-attention module but the first), <strong>the model can be interpreted as a recurrent neural network (RNN), but unrolled in depth taking the same input at every step</strong>, not a particular data point in a temporal sequence. Also, all attention modules in the Perceiver are non-causal (i.e., no masks).</p>
+
+<h3 id="taming-quadratic-complexity-with-cross-attention">Taming quadratic complexity with cross-attention</h3>
+
+<center>
+    <img class="img-fluid" src="/assets/post-images/Perceiver/fig2.png">
+</center>
+<p><span class="caption text-muted">Figure 2. <b>The authors trained the Perceiver architecture on images from ImageNet (left), video and audio from AudioSet (center), and 3D point clouds from ModelNet40 (right)</b>.</span></p>
+
+<p>The Perceiver heavily relies on attention mechanisms since it is generally applicable and powerful. Both cross-attention and Transformer modules are based on the query-key-value (QKV) attention. Then, the main challenge the authors encountered while designing such structure was to scale attention architectures to very large and generic inputs which were regarded impossible to process with the traditional Transformers due to the quadratic complexity of QKV self-attention. This is the reason why the Transformer architecture could not be directly applied to other domains.</p>
+
+<p>Prior works usually made compromises in order to avoid applying standard QKV attention directly, which is very expensive, to large scale data such as pixel arrays of images, audio samples, etc. <strong>In contrast, this paper applies attention directly to the inputs by introducing an assymetry into the attention operation.</strong></p>
+
+<p>Specifically, let $Q \in \mathbb{R}^{M \times D}$, $K \in \mathbb{R}^{M \times C}$, and $V \in \mathbb{R}^{M \times C}$, where $C$ and $D$ are channel dimensions. For example, if self-attention is computed on all pixels of an image, then $M = W \times H$, and $D = 3$ (assuming the image is in RGB format) where $W$ and $H$ are width and height of the image, respectively. Then one can easily observe that the complexity of the QKV attention operation - $\text{softmax} (QK^{T})V$ - is $\mathcal{O}(M^{2})$, as it involves two matrix multiplications with matrices of large dimension $M$. If the image is of size $1024 \times 1024$, the quadratic complexity will immediately explode - $\mathcal{O}(1024^{2}) = \mathcal{O}(2^{20})$. This is the primary reason for introducing assymetry in this work. In this setting, <strong>$K$ and $V$ become projections of the input byte array, while $Q$ is instead a projection of a learned latent array with index dimension</strong> $N \ll M$. As mentioned earlier, the dimensionality $N$ of latents is a hyperparameter. Then the resulting cross-attention operation would have complexity $\mathcal{O}(MN)$.</p>
+
+<h3 id="uncoupling-depth-with-a-latent-transformer">Uncoupling depth with a latent Transformer</h3>
+
+<p>The output of the cross-attention module has the same shape as the input to the $Q$ network. This is then consumed by deep, expressive Transformers in the latent space which cost only $\mathcal{O}(N^{2})$. This design allows us to implement much deeper Transformers without relying on domain-specific assumptions. It is worth mentioning that a Transformer built on bytes has complexity $\mathcal{O}(LM^{2})$ while a latent Transformer has complexity $\mathcal{O}(LN^{2})$ where $N$ is significantly smaller than $M$, and $L$ is the number of layers.</p>
+
+<p>Then the total complexity becomes $\mathcal{O}(MN + LN^{2})$. Since the Perceiver decouples the input size and the depth, it can embrace additional Transformer layers without any concern on cost related to the size of input data. It is the core idea which enables us to build very large networks on large-scale data (e.g., the best performing Perceiver model on ImageNet has 48 latent Transformer blocks, which was considered impossible with traditional Transformers).</p>
+
+<p>The latent Transformer used in this work adopted the GPT-2 architecture, which is based on the decoder of the original Transformer architecture. In experiments, the authors used values of $N \leq 1024$ for the dimensionality of latents. Furthermore, the latent array is initialized using a learned position encoding.</p>
+
+<h3 id="iterative-cross-attention--weight-sharing">Iterative cross-attention &amp; weight sharing</h3>
+
+<p>In the previous section, we analyzed how the computational cost is affected by the size of input. Thanks to the smaller latent array and cross-attention between inputs and latents, we can:</p>
+
+<ol>
+  <li>Use large scale data (e.g., images, audio samples) directly without any optimization or assumption on them.</li>
+  <li>Build deeper Transformers whose cost is solely dependent to the number of latents, not the size of inputs.</li>
+</ol>
+
+<p>On the other hand, <strong>one also must think about the trade-off between the network’s ability to capture details from the input data and the computational cost.</strong> Due to the existence of latent bottleneck, the network might struggle to capture necessary information from the input data. And one possible solution for that is to add more cross-attention layers into the model. This will allow the latent array to iteratively extract information from the input data as much as needed. However, while experimental results show that more cross-attends lead to better performance, such gain comes with higher computational cost since the cost of cross-attention has linear dependence on the input size.</p>
+
+<p>Last but not least, the parameter efficiency of the Perceiver can further be improved by exploiting its iterative structure. That is, it is possible to share weights between:</p>
+
+<ul>
+  <li>corresponding blocks of each latent Transformer</li>
+  <li>cross-attend modules</li>
+</ul>
+
+<p>Latent self-attention blocks can be shared if only a single cross-attend is used. In their experiments on ImageNet, the authors could reduce the number of parameters by 10 times by sharing weights. Also, this also reduced overfitting and boosted validation performance.</p>
+
+<p>Therefore, the resulting architecture has the functional form of an RNN with:</p>
+
+<ul>
+  <li>A cross-attention input projection</li>
+  <li>A bottlenecked latent dimensionality</li>
+  <li>A latent Transformer recurrent core</li>
+</ul>
+
+<h2 id="position-encodings">Position encodings</h2>
+
+<h3 id="permutation-invariance-and-position-information">Permutation invariance and position information</h3>
+
+<p>Attention is a permutation-invariant operation, and this property is still valid in the Perceiver and related models. In other words, a pure attention model will return the same output regardless of the order of its inputs. This is the reason why attention-based architectures are well-suited for many types of data - they make no assumptions about spatial relationships or symmetries. Meanwhile, convolutional layers that are widely adopted in image processing often make several assumptions on 2D spatial structure within images. These assumptions naturally arise from the structure &amp; mechanisms of convolutional layer itself such as:</p>
+
+<ul>
+  <li>Use of filters that look only at local regions of image → makes it easier to capture the relationship between nearby pixels than distant pixels</li>
+  <li>Sharing weights across both spatial dimensions (i.e., a single kernel wipes the image along both width and height directions) → helps to model data with translation-invariant statistics</li>
+  <li>Applying small filters repeatedly → helps to model data with scale-invariant statistics</li>
+</ul>
+
+<p>However, apart from preventing the Perceiver from making presumptions on data, the model should be able to exploit spatial relationships in its input. Because spatial relationships are essential for sensory reasoning and such limitation is undesirable. To circumvent such issue, position information is usually injected by tagging <em>position encodings</em> onto the input features, and this paper use the approach as well. While position encoding was originally introduced in natural language processing literature to encode the position inside word sequences, it can also be used to encode spatial, temporal, and modality identity as well.</p>
+
+<h3 id="scalable-fourier-features">Scalable Fourier features</h3>
+
+<center>
+    <img class="img-fluid" src="/assets/post-images/Perceiver/fig3.png">
+</center>
+<p><span class="caption text-muted">Figure 3. <b>Attention maps from the first (blue), second (green), and eighth (orange) cross-attention layers of a model on ImageNet with 8 cross-attention modules</b>.</span></p>
+
+<p>Here, the authors used Fourier feature position encodings which has shown good performance both in language and in vision. They used a parametrization of Fourier features with which so they can:</p>
+
+<ol>
+  <li>Directly represent the position structure of the input data (preserving 1D temporal or 2D spatial structure for audio or images, respectively, or 3D spatiotemporal structure for videos).</li>
+  <li>Control the number of frequency bands in the position encoding independently of the cutoff frequency.</li>
+  <li>Uniformly sample all frequencies up to a target resolution.</li>
+</ol>
+
+<p>The authors parametrized the frequency encoding to take the values $[\sin (f_{k} \pi x_{d}), \cos (f_{k} \pi x_{d})]$, where the frequency $f_{k}$ is the $k^{\text{th}}$ band of a bank of frequencies spaced equally between 1 and $\frac{\mu}{2}$ and $x_{d} \in [-1, 1]$ is the value of the input position along the $d^{\text{th}}$ dimension. $\frac{\mu}{2}$ can be interpreted as the Nyquist frequency corresponding to a target sampling rate of $\mu$. Providing encodings will encourage the model to learn to compare the values of bytes at any positions in the input array. As other works normally did, these values are then concatenated with the raw position value $x_{d}$ to produce the final representation of position. This gives us a position encoding of size $d(2K + 1)$ (for each dimension, $K$ sine and cosine components and a coordinate along the dimension).</p>
+
+<p>This parametrization scheme is related to the NeRF’s position encoding scheme which is built around frequency bands with increasing powers of two (i.e., the $k^{\text{th}}$ band has frequency $2^{k}$). However, this yields very high frequencies for even modest number of bands, thus turned out to be numerically unstable in some experiments conducted by the authors.</p>
+
+<p>Also, it is worth to compare this scheme with that of Transformer. In the Transformer, inputs are produced by adding a position encoding to the input encoding (NB. NLP usually involves encoding of symbols using embedding layer, through the process so called <em>word embedding</em>). Note that a position encoding must be of same size as the input encoding when following that scheme. The authors found it beneficial to concatenate the position and input features rather than just adding them together.</p>
+
+<h3 id="position-encodings-are-generally-applicable">Position encodings are generally applicable</h3>
+
+<p>One important thing to note here is that the use of position encodings does NOT contradict the foundation of this work - building a domain agnostic architecture for general perception tasks. There are three reasons:</p>
+
+<ol>
+  <li>While the architectural imposition of position information hard codes a specific positional prior, <strong>the feature-based approach allows the network to learn how to use the position structure</strong>.</li>
+  <li>
+<strong>Position encoding can be easily adapted to a new domain since Fourier features are trivial to adapt as long as the input dimensionality is relatively small and known</strong> (NB. lots of signal processing algorithms are built on top of Fourier analysis). The Transformer is one example which shows that simple, learned position encoding is sufficient for good results, and the authors themselves discovered that similar strategy works well on ImageNet (without knowing anything about input 2D structure) and on other kinds of modalities.</li>
+  <li>
+<strong>Position encodings can be naturally extended to multimodal data</strong> - each domain can use a position encoding with the correct dimensionality for its data, with learned encodings used to distinguish domains.</li>
+</ol>
+
+<h1 id="conclusion">Conclusion</h1>
+
+<p>This paper presented the Perceiver, a Transformer-based model which scales to more than a hundred thousand inputs. Built upon a novel iterative cross-attention between input byte array and latent array whose size is controlled by a hyperparameter, the Perceiver is able to handle arbitrary sensor configurations, enabling fusion of information at all levels. This makes the Perceiver an architecture for general perception since it makes few assumptions about its inputs.</p>
+
+<p>However, the Perceiver also has drawbacks that are expected to be improved in future works:</p>
+
+<ol>
+  <li>Its great flexibility comes with great overfitting, thus many parts of its design were intended to mitigate this. → Requires lots of data</li>
+  <li>Although the authors have reduced the amount of modality-specific prior knowledge in the model, they had to employ modality-specific augmentation and position encoding. Thus, searching for a method toward end-to-end modality agnostic learning is still an interesting research topic.</li>
+</ol>
+
+
+        <hr>
+
+        <div class="clearfix">
+
+          
+          <a class="btn btn-primary float-left" href="/2021/08/26/Transformer.html" data-toggle="tooltip" data-placement="top" title="Summary of 'Attention Is All You Need'">← Previous<span class="d-none d-md-inline">
+              Post</span></a>
+          
+          
+          <a class="btn btn-primary float-right" href="/2021/09/02/Whitted.html" data-toggle="tooltip" data-placement="top" title="Summary of 'An Improved Illumination Model for Shaded Display'">Next<span class="d-none d-md-inline">
+              Post</span> →</a>
+          
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Footer -->
+
+<hr>
+
+<footer>
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-8 col-md-10 mx-auto">
+        <ul class="list-inline text-center">
+          
+          <li class="list-inline-item">
+            <a href="mailto:dreamy1534@kaist.ac.kr">
+              <span class="fa-stack fa-lg">
+                <i class="fas fa-circle fa-stack-2x"></i>
+                <i class="far fa-envelope fa-stack-1x fa-inverse"></i>
+              </span>
+            </a>
+          </li>
+          
+          
+          
+          
+          
+          
+        </ul>
+        <p class="copyright text-muted">Copyright © Seungwoo Yoo 2023</p>
+      </div>
+    </div>
+  </div>
+</footer>
+
+
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/assets/vendor/startbootstrap-clean-blog/js/scripts.js"></script>
+
+<script src="/assets/scripts.js"></script>
+
+
+
+
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-XXXXXXXXX-X"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-XXXXXXXXX-X');
+</script>
+
+
+
+</body>
+
+</html>
